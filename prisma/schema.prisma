@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id          String   @id @default(cuid())
+  name        String
+  avatarColor   String   @default("#3b82f6")
+  currentAge    Int?
+  retirementAge Int?     @default(60)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  incomes    Income[]
+  expenses   Expense[]
+  debts      Debt[]
+  assets     Asset[]
+  goals      Goal[]
+  scenarios  Scenario[]
+  checkins   MonthlyCheckin[]
+  plaidItems PlaidItem[]
+}
+
+model Income {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  amount    Float
+  frequency String   @default("monthly")
+  taxRate   Float    @default(0)
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  amount    Float
+  frequency String   @default("monthly")
+  category  String   @default("other")
+  isFixed   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model Debt {
+  id              String   @id @default(cuid())
+  profileId       String
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name            String
+  balance         Float
+  interestRate    Float
+  minimumPayment  Float
+  type            String   @default("personal")
+  originalLoan    Float?   // Original loan amount (optional)
+  loanTermMonths  Int?     // Loan term in months (optional)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model Asset {
+  id                  String   @id @default(cuid())
+  profileId           String
+  profile             Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name                String
+  value               Float
+  type                String   @default("other")
+  growthRate          Float    @default(0)
+  monthlyContribution Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  profileId     String
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name          String
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  targetDate    DateTime
+  priority      Int      @default(1)
+  type          String   @default("custom")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model Scenario {
+  id          String           @id @default(cuid())
+  profileId   String
+  profile     Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name        String
+  description String           @default("")
+  isBaseline    Boolean          @default(false)
+  snapshotData  String?          // JSON blob of full FinancialState for sandbox mode
+  changes       ScenarioChange[]
+  createdAt     DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([profileId])
+}
+
+model ScenarioChange {
+  id         String   @id @default(cuid())
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  field      String
+  oldValue   String
+  newValue   String
+  createdAt  DateTime @default(now())
+
+  @@index([scenarioId])
+}
+
+model MonthlyCheckin {
+  id                 String        @id @default(cuid())
+  profileId          String
+  profile            Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  month              Int
+  year               Int
+  totalIncome        Float
+  totalExpenses      Float
+  expensesByCategory String        // JSON: { housing: 1200, food: 450, ... }
+  netWorth           Float?
+  overallGrade       String        // A, B, C, D, F
+  gradeDetails       String        // JSON: { housing: { budgeted: 1500, actual: 1200, grade: "A" }, ... }
+  aiSuggestions      String?       // JSON from Claude response
+  transactions       Transaction[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([profileId, month, year])
+}
+
+model Transaction {
+  id                 String          @id @default(cuid())
+  checkinId          String?
+  checkin            MonthlyCheckin? @relation(fields: [checkinId], references: [id], onDelete: SetNull)
+  date               DateTime
+  description        String
+  amount             Float
+  isIncome           Boolean        @default(false)
+  category           String         @default("other")
+  source             String
+  excluded           Boolean        @default(false)
+  plaidTransactionId String?        @unique
+  plaidAccountId     String?
+  plaidAccount       PlaidAccount?  @relation(fields: [plaidAccountId], references: [id], onDelete: SetNull)
+  createdAt          DateTime       @default(now())
+
+  @@index([checkinId])
+  @@index([plaidAccountId])
+}
+
+model PlaidItem {
+  id              String         @id @default(cuid())
+  profileId       String
+  profile         Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  accessToken     String
+  itemId          String         @unique
+  institutionId   String
+  institutionName String
+  syncCursor      String?
+  lastSynced      DateTime?
+  isActive        Boolean        @default(true)
+  consentExpires  DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  accounts PlaidAccount[]
+
+  @@index([profileId])
+}
+
+model PlaidAccount {
+  id               String      @id @default(cuid())
+  plaidItemId      String
+  plaidItem        PlaidItem   @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  accountId        String      @unique
+  name             String
+  officialName     String?
+  type             String
+  subtype          String?
+  mask             String?
+  balanceCurrent   Float?
+  balanceAvailable Float?
+  balanceLimit     Float?
+  linkedAssetId    String?
+  linkedDebtId     String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  transactions Transaction[]
+
+  @@index([plaidItemId])
+}
