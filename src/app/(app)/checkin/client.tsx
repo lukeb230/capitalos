@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { usePlaidLink } from "react-plaid-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,8 @@ import {
   RefreshCw,
   Building2,
   Unlink,
+  ReceiptText,
+  Search,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { parseCSV, DEFAULT_ACCOUNT_TYPE, DEFAULT_ACCOUNT_LABEL } from "@/lib/checkin/csv-parser";
@@ -198,6 +201,40 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
 
   // Drag state
   const [dragging, setDragging] = useState(false);
+
+  // Transaction viewer state
+  const [txViewerOpen, setTxViewerOpen] = useState(false);
+  const [txViewerData, setTxViewerData] = useState<{ id: string; date: string; description: string; amount: number; isIncome: boolean; category: string; excluded: boolean }[]>([]);
+  const [txViewerLoading, setTxViewerLoading] = useState(false);
+  const [txFilterCategory, setTxFilterCategory] = useState("all");
+  const [txFilterSearch, setTxFilterSearch] = useState("");
+
+  async function openTransactionViewer() {
+    setTxViewerOpen(true);
+    setTxViewerLoading(true);
+    try {
+      const res = await fetch("/api/transactions?days=90");
+      const data = await res.json();
+      if (Array.isArray(data)) setTxViewerData(data);
+    } catch {
+      alert("Failed to load transactions.");
+    } finally {
+      setTxViewerLoading(false);
+    }
+  }
+
+  async function updateTransactionCategory(txId: string, newCategory: string) {
+    try {
+      await fetch("/api/transactions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: txId, category: newCategory }),
+      });
+      setTxViewerData((prev) => prev.map((t) => t.id === txId ? { ...t, category: newCategory } : t));
+    } catch {
+      alert("Failed to update category.");
+    }
+  }
 
   // Plaid state
   const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
@@ -1637,8 +1674,23 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
   // Main render
   // ---------------------------------------------------------------------------
 
+  const filteredTxViewer = txViewerData.filter((t) => {
+    if (txFilterCategory !== "all" && t.category !== txFilterCategory) return false;
+    if (txFilterSearch && !t.description.toLowerCase().includes(txFilterSearch.toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Header with View Transactions button */}
+      <div className="flex items-center justify-between mb-4">
+        <div />
+        <Button variant="outline" size="sm" onClick={openTransactionViewer}>
+          <ReceiptText className="h-3.5 w-3.5 mr-1.5" />
+          View Transactions
+        </Button>
+      </div>
+
       {renderStepIndicator()}
 
       {step === "upload" && renderUpload()}
@@ -1647,6 +1699,99 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
       {step === "suggestions" && renderSuggestions()}
 
       {renderHistory()}
+
+      {/* Transaction Viewer Dialog */}
+      <Dialog open={txViewerOpen} onOpenChange={setTxViewerOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Recent Transactions (last 90 days)</DialogTitle>
+          </DialogHeader>
+
+          {/* Filters */}
+          <div className="flex gap-3 py-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search transactions..."
+                value={txFilterSearch}
+                onChange={(e) => setTxFilterSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <Select value={txFilterCategory} onValueChange={(v: string | null) => { if (v) setTxFilterCategory(v); }}>
+              <SelectTrigger className="w-[160px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{capitalize(c)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Transaction list */}
+          <div className="overflow-y-auto flex-1">
+            {txViewerLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredTxViewer.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12 text-sm">
+                {txViewerData.length === 0 ? "No transactions in the last 90 days." : "No transactions match your filters."}
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[90px]">Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[100px] text-right">Amount</TableHead>
+                    <TableHead className="w-[150px]">Category</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTxViewer.slice(0, 500).map((t) => (
+                    <TableRow key={t.id} className={t.excluded ? "opacity-40" : ""}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </TableCell>
+                      <TableCell className="text-sm">{t.description}</TableCell>
+                      <TableCell className={`text-sm text-right font-medium ${t.isIncome ? "text-emerald-600" : ""}`}>
+                        {t.isIncome ? "+" : "-"}{formatCurrency(t.amount)}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={t.category}
+                          onValueChange={(v: string | null) => {
+                            if (v) updateTransactionCategory(t.id, v);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map((c) => (
+                              <SelectItem key={c} value={c}>{capitalize(c)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+            Showing {Math.min(filteredTxViewer.length, 500)} of {filteredTxViewer.length} transactions
+            {txFilterCategory !== "all" || txFilterSearch ? ` (filtered from ${txViewerData.length} total)` : ""}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

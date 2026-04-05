@@ -155,6 +155,23 @@ async function startNextServer() {
   // Load .env from userData
   loadEnvFromUserData();
 
+  // Cleanup transactions older than 90 days
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const cleanupPrisma = new PrismaClient();
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+    const result = await cleanupPrisma.transaction.deleteMany({
+      where: { date: { lt: cutoff } },
+    });
+    if (result.count > 0) {
+      console.log(`Cleaned up ${result.count} transactions older than 90 days`);
+    }
+    await cleanupPrisma.$disconnect();
+  } catch (e) {
+    console.error("Transaction cleanup failed:", e.message);
+  }
+
   // Start Next.js
   const next = require("next");
   const nextApp = next({
