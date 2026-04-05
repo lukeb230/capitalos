@@ -32,6 +32,8 @@ interface PlaidAccountRef {
   type: string;
   subtype: string | null;
   linkedDebtId: string | null;
+  balanceCurrent: number | null;
+  balanceLimit: number | null;
 }
 
 const debtTypes = ["mortgage", "student", "credit", "auto", "personal"];
@@ -156,6 +158,44 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
               <DialogTitle>{editing ? "Edit" : "Add"} Debt</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
+              {plaidAccounts.length > 0 && !editing && (
+                <div>
+                  <Label>Link a Bank Account</Label>
+                  <Select value={form.linkedPlaidAccountId || "none"} onValueChange={(v: string | null) => {
+                    if (!v || v === "none") {
+                      setForm({ ...form, linkedPlaidAccountId: "" });
+                      return;
+                    }
+                    const acct = plaidAccounts.find((p) => p.id === v);
+                    if (acct) {
+                      const debtType = acct.subtype === "credit card" || acct.type === "credit" ? "credit"
+                        : acct.subtype === "mortgage" ? "mortgage"
+                        : acct.subtype === "student" ? "student"
+                        : acct.subtype === "auto" ? "auto"
+                        : "personal";
+                      const balance = acct.balanceCurrent != null ? Math.abs(acct.balanceCurrent) : 0;
+                      setForm({
+                        ...form,
+                        linkedPlaidAccountId: v,
+                        name: `${acct.name}${acct.mask ? ` ****${acct.mask}` : ""}`,
+                        balance: balance > 0 ? String(balance) : form.balance,
+                        type: debtType,
+                        originalLoan: acct.balanceLimit != null ? String(acct.balanceLimit) : form.originalLoan,
+                      });
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Manual entry</SelectItem>
+                      {plaidAccounts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} {p.mask ? `****${p.mask}` : ""} {p.balanceCurrent != null ? `(${formatCurrency(Math.abs(p.balanceCurrent))})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>Name</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Car Loan" />
@@ -218,23 +258,6 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
                 </div>
               )}
 
-              {plaidAccounts.length > 0 && (
-                <div className="border-t pt-4">
-                  <Label>Linked Plaid Account</Label>
-                  <Select value={form.linkedPlaidAccountId || "none"} onValueChange={(v: string | null) => { if (v) setForm({ ...form, linkedPlaidAccountId: v === "none" ? "" : v }); }}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None (manual)</SelectItem>
-                      {plaidAccounts.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} {p.mask ? `****${p.mask}` : ""} ({p.subtype || p.type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground mt-1">Link to auto-update this debt&apos;s balance when you sync.</p>
-                </div>
-              )}
               <Button className="w-full" onClick={handleSave} disabled={!form.name || !form.balance || !form.interestRate || !form.minimumPayment}>
                 {editing ? "Update" : "Add"} Debt
               </Button>

@@ -30,6 +30,7 @@ interface PlaidAccountRef {
   type: string;
   subtype: string | null;
   linkedAssetId: string | null;
+  balanceCurrent: number | null;
 }
 
 const assetTypes = ["savings", "investment", "property", "vehicle", "other"];
@@ -137,6 +138,43 @@ export function AssetsClient({ items, plaidAccounts }: { items: Asset[]; plaidAc
               <DialogTitle>{editing ? "Edit" : "Add"} Asset</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
+              {plaidAccounts.length > 0 && !editing && (
+                <div>
+                  <Label>Link a Bank Account</Label>
+                  <Select value={form.linkedPlaidAccountId || "none"} onValueChange={(v: string | null) => {
+                    if (!v || v === "none") {
+                      setForm({ ...form, linkedPlaidAccountId: "" });
+                      return;
+                    }
+                    const acct = plaidAccounts.find((p) => p.id === v);
+                    if (acct) {
+                      const assetType = acct.subtype === "savings" ? "savings"
+                        : acct.subtype === "checking" ? "checking"
+                        : acct.type === "investment" ? "investment"
+                        : "savings";
+                      const growthRate = assetType === "investment" ? "8" : assetType === "savings" ? "4.5" : "0";
+                      setForm({
+                        ...form,
+                        linkedPlaidAccountId: v,
+                        name: `${acct.name}${acct.mask ? ` ****${acct.mask}` : ""}`,
+                        value: acct.balanceCurrent != null ? String(Math.abs(acct.balanceCurrent)) : form.value,
+                        type: assetType,
+                        growthRate,
+                      });
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Manual entry</SelectItem>
+                      {plaidAccounts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} {p.mask ? `****${p.mask}` : ""} {p.balanceCurrent != null ? `(${formatCurrency(Math.abs(p.balanceCurrent))})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>Name</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Savings Account" />
@@ -166,23 +204,6 @@ export function AssetsClient({ items, plaidAccounts }: { items: Asset[]; plaidAc
                   <Input type="number" value={form.monthlyContribution} onChange={(e) => setForm({ ...form, monthlyContribution: e.target.value })} placeholder="500" />
                 </div>
               </div>
-              {plaidAccounts.length > 0 && (
-                <div className="border-t pt-4">
-                  <Label>Linked Plaid Account</Label>
-                  <Select value={form.linkedPlaidAccountId || "none"} onValueChange={(v: string | null) => { if (v) setForm({ ...form, linkedPlaidAccountId: v === "none" ? "" : v }); }}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None (manual)</SelectItem>
-                      {plaidAccounts.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} {p.mask ? `****${p.mask}` : ""} ({p.subtype || p.type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground mt-1">Link to auto-update this asset&apos;s value when you sync.</p>
-                </div>
-              )}
               <Button className="w-full" onClick={handleSave} disabled={!form.name || !form.value}>
                 {editing ? "Update" : "Add"} Asset
               </Button>

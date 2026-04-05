@@ -13,7 +13,7 @@ export default async function AssetsPage() {
         plaidItem: { profileId, isActive: true },
         type: { in: ["depository", "investment"] },
       },
-      select: { id: true, name: true, mask: true, type: true, subtype: true, linkedAssetId: true },
+      select: { id: true, name: true, mask: true, type: true, subtype: true, linkedAssetId: true, balanceCurrent: true },
     }),
   ]);
   return (

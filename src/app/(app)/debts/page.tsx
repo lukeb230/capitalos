@@ -13,7 +13,7 @@ export default async function DebtsPage() {
         plaidItem: { profileId, isActive: true },
         type: { in: ["credit", "loan"] },
       },
-      select: { id: true, name: true, mask: true, type: true, subtype: true, linkedDebtId: true },
+      select: { id: true, name: true, mask: true, type: true, subtype: true, linkedDebtId: true, balanceCurrent: true, balanceLimit: true },
     }),
   ]);
   return (
