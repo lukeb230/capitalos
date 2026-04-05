@@ -102,6 +102,49 @@ export default async function DashboardPage() {
   const assetBreakdown = assetInputs.map((a) => ({ name: a.name, value: a.value }));
 
   const goalProjections = goalInputs.map((g) => {
+    // For debt_free goals, use debt payoff calculation
+    if (g.type === "debt_free") {
+      const goalLower = g.name.toLowerCase();
+      const matchingDebt = debtPayoffs.find(
+        (dp) => goalLower.includes(dp.debtName.toLowerCase()) || dp.debtName.toLowerCase().includes(goalLower)
+      ) || (g.targetAmount > 0
+        ? debtPayoffs.reduce<(typeof debtPayoffs)[0] | null>((best, dp) => {
+            const diff = Math.abs(dp.totalPaid - g.targetAmount);
+            const bestDiff = best ? Math.abs(best.totalPaid - g.targetAmount) : Infinity;
+            return diff < bestDiff ? dp : best;
+          }, null)
+        : null);
+      if (matchingDebt) {
+        return {
+          goalId: g.id, goalName: g.name,
+          estimatedMonths: matchingDebt.monthsToPayoff,
+          estimatedDate: matchingDebt.payoffDate,
+          monthlySavingsNeeded: matchingDebt.monthsToPayoff !== Infinity ? Math.round((matchingDebt.totalPaid / matchingDebt.monthsToPayoff) * 100) / 100 : 0,
+          onTrack: matchingDebt.monthsToPayoff !== Infinity,
+        };
+      }
+    }
+
+    // For net_worth and retirement goals, use projectMonthly (compound growth)
+    if (g.type === "net_worth" || g.type === "retirement") {
+      const snapshots = projectMonthly(state, 360);
+      const targetField = g.type === "retirement" ? "totalAssetValue" : "netWorth";
+      const hitMonth = snapshots.findIndex((s) => s[targetField] >= g.targetAmount);
+      const estimatedMonths = hitMonth >= 0 ? hitMonth : Infinity;
+      const targetDate = new Date(g.targetDate);
+      const monthsUntilTarget = Math.max(0, (targetDate.getFullYear() - new Date().getFullYear()) * 12 + targetDate.getMonth() - new Date().getMonth());
+      const remaining = g.targetAmount - g.currentAmount;
+      const monthlySavingsNeeded = monthsUntilTarget > 0 ? remaining / monthsUntilTarget : Infinity;
+      const estimatedDate = new Date();
+      if (estimatedMonths !== Infinity) estimatedDate.setMonth(estimatedDate.getMonth() + estimatedMonths);
+      return {
+        goalId: g.id, goalName: g.name, estimatedMonths,
+        estimatedDate: estimatedMonths === Infinity ? "Never" : estimatedDate.toISOString().split("T")[0],
+        monthlySavingsNeeded: isFinite(monthlySavingsNeeded) ? Math.round(monthlySavingsNeeded * 100) / 100 : Infinity,
+        onTrack: monthsUntilTarget > 0 && estimatedMonths <= monthsUntilTarget,
+      };
+    }
+
     const proj = projectToGoal(state, g);
     return { ...proj, goalId: g.id, goalName: g.name };
   });
