@@ -11,7 +11,8 @@
     "seed": "tsx prisma/seed.ts",
     "test": "vitest run",
     "electron:dev": "concurrently \"next dev --webpack\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "next build --webpack && electron-builder",
+    "electron:backup": "rm -rf ~/Desktop/capitalos-last-working-backup && cp -R . ~/Desktop/capitalos-last-working-backup && rm -rf ~/Desktop/capitalos-last-working-backup/node_modules ~/Desktop/capitalos-last-working-backup/.next ~/Desktop/capitalos-last-working-backup/dist",
+    "electron:build": "npm run electron:backup && next build --webpack && electron-builder",
     "electron:start": "electron ."
   },
   "prisma": {

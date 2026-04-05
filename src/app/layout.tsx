@@ -29,6 +29,20 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        {/* Invisible drag bar for Electron window — sits above all content */}
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "38px",
+            // @ts-expect-error -- Electron-specific CSS property
+            WebkitAppRegion: "drag",
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        />
         <TooltipProvider>
           {children}
         </TooltipProvider>
