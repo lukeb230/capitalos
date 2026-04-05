@@ -158,7 +158,9 @@ export function calculateEmergencyFundMonths(
 }
 
 /**
- * Savings rate = free cash flow / net income.
+ * Savings rate = (income - expenses - debt payments) / net income.
+ * Contributions count AS savings (they're money you're keeping),
+ * so we don't subtract them here.
  * A healthy savings rate is 20%+. Returns 0-100 scale.
  */
 export function calculateSavingsRate(
@@ -167,10 +169,11 @@ export function calculateSavingsRate(
   debts: DebtInput[],
   assets?: AssetInput[]
 ): number {
+  void assets; // accepted for API consistency but not used — contributions ARE savings
   const netIncome = calculateMonthlyNetIncome(incomes);
   if (netIncome <= 0) return 0;
-  const cashFlow = calculateMonthlyCashFlow(incomes, expenses, debts, assets);
-  return Math.round((Math.max(0, cashFlow) / netIncome) * 1000) / 10;
+  const saved = netIncome - calculateMonthlyExpenses(expenses) - calculateMonthlyDebtPayments(debts);
+  return Math.round((Math.max(0, saved) / netIncome) * 1000) / 10;
 }
 
 /**
