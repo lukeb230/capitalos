@@ -257,16 +257,16 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
   }
 
   return (
-    <div className="space-y-6 pt-2 md:pt-0">
-      <div>
+    <div className="flex flex-col h-[calc(100vh-60px)] pt-2 md:pt-0">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight">AI Advisor</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Ask questions about your finances — or ask me to make changes
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-        <div className="space-y-4">
+      <div className="grid gap-6 lg:grid-cols-[1fr_300px] flex-1 min-h-0">
+        <div className="flex flex-col gap-4 min-h-0">
           {/* Status */}
           <Card className={hasApiKey ? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/10" : "border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/10"}>
             <CardContent className="flex items-center gap-3 py-3">
@@ -288,8 +288,8 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
           </Card>
 
           {/* Chat Messages */}
-          <Card className="min-h-[500px] flex flex-col">
-            <CardContent className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[600px]">
+          <Card className="flex-1 flex flex-col min-h-0">
+            <CardContent className="flex-1 p-4 space-y-4 overflow-y-auto">
               {messages.length === 0 && (
                 <div className="text-center py-16">
                   <Bot className="h-16 w-16 mx-auto mb-4 text-muted-foreground/20" />
