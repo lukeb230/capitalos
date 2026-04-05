@@ -30,11 +30,11 @@ const navigation = [
   { name: "Debts", href: "/debts", icon: CreditCard },
   { name: "Assets", href: "/assets", icon: Landmark },
   { name: "Goals", href: "/goals", icon: Target },
+  { name: "Spending Trends", href: "/trends", icon: BarChart3 },
   { name: "Scenarios", href: "/scenarios", icon: GitBranch },
   { name: "Afford It?", href: "/calculator", icon: Calculator },
   { name: "Opportunity Cost", href: "/opportunity", icon: TrendingDown },
   { name: "Monthly Check-in", href: "/checkin", icon: ClipboardCheck },
-  { name: "Spending Trends", href: "/trends", icon: BarChart3 },
   { name: "AI Advisor", href: "/advisor", icon: Bot },
 ];
 

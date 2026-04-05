@@ -92,6 +92,8 @@ export function SpendingDonut({ categories, totalIncome, totalOutflow, surplus }
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
                 fontSize: "12px",
+                color: "hsl(var(--foreground))",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
               }}
             />
           </PieChart>

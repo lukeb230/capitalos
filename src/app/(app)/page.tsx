@@ -59,6 +59,10 @@ export default async function DashboardPage() {
   const netWorth = calculateNetWorth(assetInputs, debtInputs);
   const totalAssets = calculateTotalAssets(assetInputs);
   const totalDebts = calculateTotalDebts(debtInputs);
+  const collateralEquity = debtInputs.reduce((sum, d) => {
+    if (d.collateralValue && d.collateralValue > 0) return sum + Math.max(0, d.collateralValue - d.balance);
+    return sum;
+  }, 0);
   const emergencyMonths = calculateEmergencyFundMonths(assetInputs, expenseInputs);
   const savingsRate = calculateSavingsRate(incomeInputs, expenseInputs, debtInputs, assetInputs);
   const projections1yr = projectMonthly(state, 12);
@@ -113,6 +117,7 @@ export default async function DashboardPage() {
       netWorth={netWorth}
       totalAssets={totalAssets}
       totalDebts={totalDebts}
+      collateralEquity={collateralEquity}
       emergencyMonths={emergencyMonths}
       savingsRate={savingsRate}
       dtiRatio={Math.round(dtiRatio * 10) / 10}

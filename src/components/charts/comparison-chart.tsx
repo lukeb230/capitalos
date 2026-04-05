@@ -42,7 +42,6 @@ export function ComparisonChart({ baselineData, scenarioData, scenarioName }: Pr
             color: "hsl(var(--foreground))",
           }}
           labelStyle={{ color: "hsl(var(--foreground))" }}
-          itemStyle={{ color: "hsl(var(--foreground))" }}
         />
         <Legend wrapperStyle={{ color: "hsl(var(--foreground))" }} />
         <Line type="monotone" dataKey="baseline" name="Baseline" stroke="#6b7280" strokeWidth={2} dot={false} connectNulls={false} />

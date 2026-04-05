@@ -55,6 +55,7 @@ interface Props {
   netWorth: number;
   totalAssets: number;
   totalDebts: number;
+  collateralEquity: number;
   emergencyMonths: number;
   savingsRate: number;
   dtiRatio: number;
@@ -147,7 +148,7 @@ function saveDashboardConfig(config: { sections: DashboardSection[]; hidden: Das
 }
 
 export function DashboardClient({
-  monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, freeSurplus, totalContributions, netWorth, totalAssets, totalDebts,
+  monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, freeSurplus, totalContributions, netWorth, totalAssets, totalDebts, collateralEquity,
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debts, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, spendingCategories,
   fixedExpenses, variableExpenses, assetAllocation, assetBreakdown,
@@ -548,7 +549,7 @@ export function DashboardClient({
 
       {/* Stat Cards Row */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={`${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
+        <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={collateralEquity > 0 ? `${formatCurrency(totalAssets)} assets + ${formatCurrency(collateralEquity)} equity` : `${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
         <StatCard title="Monthly Income" value={formatCurrency(monthlyIncome)} subtitle="After taxes" icon={DollarSign} trend="up" />
         <StatCard title="Monthly Commitments" value={formatCurrency(monthlyExpenses + monthlyDebtPayments + totalContributions)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt${totalContributions > 0 ? ` + ${formatCurrency(totalContributions)} invest` : ""}`} icon={ArrowDownRight} trend="down" />
         <StatCard title="Free Surplus" value={formatCurrency(freeSurplus)} subtitle={freeSurplus > 0 ? "After bills, debt & contributions" : "Over-committed"} icon={ArrowUpRight} trend={freeSurplus >= 0 ? "up" : "down"} />
