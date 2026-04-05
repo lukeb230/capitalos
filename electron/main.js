@@ -146,6 +146,31 @@ async function startNextServer() {
   // Load .env from userData
   loadEnvFromUserData();
 
+  // Auto-migrate: add any missing columns to the user's existing database
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const migratePrisma = new PrismaClient();
+    const migrations = [
+      // v1.0.9: Add collateral tracking to debts
+      'ALTER TABLE Debt ADD COLUMN collateralValue REAL',
+      'ALTER TABLE Debt ADD COLUMN appreciationRate REAL',
+      // v1.0.8: Add profile age fields
+      'ALTER TABLE Profile ADD COLUMN currentAge INTEGER',
+      'ALTER TABLE Profile ADD COLUMN retirementAge INTEGER DEFAULT 60',
+    ];
+    for (const sql of migrations) {
+      try {
+        await migratePrisma.$executeRawUnsafe(sql);
+        console.log("Migration applied:", sql.substring(0, 60));
+      } catch {
+        // Column already exists — safe to ignore
+      }
+    }
+    await migratePrisma.$disconnect();
+  } catch (e) {
+    console.error("Auto-migration failed:", e.message);
+  }
+
   // Cleanup transactions older than 90 days
   try {
     const { PrismaClient } = require("@prisma/client");
