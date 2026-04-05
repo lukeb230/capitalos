@@ -101,7 +101,12 @@ function setupAutoUpdater() {
     });
 
     if (response === 0) {
-      autoUpdater.quitAndInstall();
+      autoUpdater.autoInstallOnAppQuit = true;
+      setImmediate(() => {
+        app.removeAllListeners("window-all-closed");
+        if (mainWindow) mainWindow.close();
+        autoUpdater.quitAndInstall(false, true);
+      });
     }
   });
 
