@@ -1254,13 +1254,19 @@ function RetirementSimulator({
     const inflationFactor = Math.pow(1 + inflationRate / 100, yearsToRetirement);
     const realPurchasingPower = yearlyWithdrawal / inflationFactor;
 
+    const realPortfolioAtRetirement = portfolioAtRetirement / inflationFactor;
+    const realYearlyWithdrawal = yearlyWithdrawal / inflationFactor;
+
     return {
       portfolioAtRetirement,
+      realPortfolioAtRetirement,
       yearlyWithdrawal,
+      realYearlyWithdrawal,
       portfolioLastsUntil,
       realPurchasingPower,
       chartData,
       retirementAge,
+      inflationFactor,
     };
   }, [retSim, sandboxState]);
 
@@ -1303,14 +1309,16 @@ function RetirementSimulator({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Portfolio at Retirement</p>
               <p className="text-2xl font-bold text-blue-600">{formatCurrency(retCalc.portfolioAtRetirement)}</p>
-              <p className="text-[10px] text-muted-foreground">Projected at age {retCalc.retirementAge}</p>
+              <p className="text-[10px] text-muted-foreground">Nominal at age {retCalc.retirementAge}</p>
+              <p className="text-sm font-medium text-muted-foreground mt-1">{formatCurrency(retCalc.realPortfolioAtRetirement)} <span className="text-[10px]">in today&apos;s dollars</span></p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Year 1 Withdrawal</p>
               <p className="text-2xl font-bold text-emerald-600">{formatCurrency(retCalc.yearlyWithdrawal)}<span className="text-sm font-normal">/yr</span></p>
-              <p className="text-[10px] text-muted-foreground">{formatCurrency(retCalc.yearlyWithdrawal / 12)}/mo</p>
+              <p className="text-[10px] text-muted-foreground">Nominal ({formatCurrency(retCalc.yearlyWithdrawal / 12)}/mo)</p>
+              <p className="text-sm font-medium text-muted-foreground mt-1">{formatCurrency(retCalc.realYearlyWithdrawal)}<span className="text-[10px]">/yr in today&apos;s dollars</span></p>
             </CardContent>
           </Card>
           <Card className={retCalc.portfolioLastsUntil >= 100 ? "border-emerald-200" : "border-red-200"}>
@@ -1328,7 +1336,7 @@ function RetirementSimulator({
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Real Purchasing Power</p>
               <p className="text-2xl font-bold">{formatCurrency(retCalc.realPurchasingPower)}<span className="text-sm font-normal">/yr</span></p>
-              <p className="text-[10px] text-muted-foreground">In today&apos;s dollars</p>
+              <p className="text-[10px] text-muted-foreground">Year 1 withdrawal in today&apos;s dollars</p>
             </CardContent>
           </Card>
         </div>
