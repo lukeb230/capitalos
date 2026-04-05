@@ -29,14 +29,29 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        {/* Invisible drag bar for Electron window — sits above all content */}
+        {/* Drag bars for Electron window — two strips that avoid content areas */}
+        {/* Left strip: over sidebar header (next to traffic lights) */}
         <div
           style={{
             position: "fixed",
             top: 0,
             left: 0,
-            right: 0,
+            width: "260px",
             height: "38px",
+            // @ts-expect-error -- Electron-specific CSS property
+            WebkitAppRegion: "drag",
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        />
+        {/* Right strip: over main content top bar (empty space only) */}
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: "260px",
+            right: 0,
+            height: "12px",
             // @ts-expect-error -- Electron-specific CSS property
             WebkitAppRegion: "drag",
             zIndex: 9999,
