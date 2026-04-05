@@ -83,30 +83,21 @@ function loadEnvFromUserData() {
 function setupAutoUpdater() {
   if (isDev) return;
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoDownload = false;
 
   autoUpdater.on("update-available", (info) => {
-    console.log("Update available:", info.version);
-  });
-
-  autoUpdater.on("update-downloaded", (info) => {
+    const { shell } = require("electron");
     const response = dialog.showMessageBoxSync(mainWindow, {
       type: "info",
-      title: "Update Ready",
-      message: `CapitalOS v${info.version} has been downloaded.`,
-      detail: "The update will be installed when you restart the app.",
-      buttons: ["Restart Now", "Later"],
+      title: "Update Available",
+      message: `CapitalOS v${info.version} is available.`,
+      detail: "Download the update, unzip, and drag to Applications to replace the current version. Your data is preserved.",
+      buttons: ["Download", "Later"],
       defaultId: 0,
     });
 
     if (response === 0) {
-      autoUpdater.autoInstallOnAppQuit = true;
-      setImmediate(() => {
-        app.removeAllListeners("window-all-closed");
-        if (mainWindow) mainWindow.close();
-        autoUpdater.quitAndInstall(false, true);
-      });
+      shell.openExternal(`https://github.com/lukeb230/capitalos/releases/tag/v${info.version}`);
     }
   });
 
