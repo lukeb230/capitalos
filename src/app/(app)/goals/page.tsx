@@ -121,7 +121,7 @@ export default async function GoalsPage() {
     // For net_worth and retirement goals, use projectMonthly which accounts for
     // compound asset growth and debt payoff — not just cash surplus accumulation
     if (g.type === "net_worth" || g.type === "retirement") {
-      const snapshots = projectMonthly(state, 600);
+      const snapshots = projectMonthly(state, 360);
       const targetField = g.type === "retirement" ? "totalAssetValue" : "netWorth";
       const hitMonth = snapshots.findIndex((s) => s[targetField] >= g.targetAmount);
       const estimatedMonths = hitMonth >= 0 ? hitMonth : Infinity;

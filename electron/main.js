@@ -162,8 +162,10 @@ async function startNextServer() {
       try {
         await migratePrisma.$executeRawUnsafe(sql);
         console.log("Migration applied:", sql.substring(0, 60));
-      } catch {
-        // Column already exists — safe to ignore
+      } catch (e) {
+        if (e.message && !e.message.includes("duplicate column")) {
+          console.warn("Migration warning:", e.message);
+        }
       }
     }
     await migratePrisma.$disconnect();

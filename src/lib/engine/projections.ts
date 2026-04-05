@@ -235,6 +235,7 @@ export function applyScenarioChanges(
         "amount", "balance", "interestRate", "minimumPayment", "value",
         "growthRate", "monthlyContribution", "taxRate", "targetAmount",
         "currentAmount", "priority", "originalLoan", "loanTermMonths",
+        "collateralValue", "appreciationRate",
       ]);
       const val = change.newValue;
       if (val === "true") {
