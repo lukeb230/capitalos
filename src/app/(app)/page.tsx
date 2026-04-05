@@ -101,6 +101,25 @@ export default async function DashboardPage() {
   // Asset breakdown (individual assets by name)
   const assetBreakdown = assetInputs.map((a) => ({ name: a.name, value: a.value }));
 
+  // Compute auto-tracked current amounts (same logic as goals page)
+  const liquidAssetTotal = assetInputs.filter((a) => a.type === "savings" || a.type === "checking").reduce((sum, a) => sum + a.value, 0);
+  const investmentAssetTotal = assetInputs.filter((a) => a.type === "investment").reduce((sum, a) => sum + a.value, 0);
+  const autoTrackedAmounts: Record<string, number> = {};
+  for (const g of goalInputs) {
+    switch (g.type) {
+      case "net_worth": autoTrackedAmounts[g.id] = netWorth; break;
+      case "debt_free": {
+        const goalLower = g.name.toLowerCase();
+        const matchingDebt = debtInputs.find((d) => goalLower.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(goalLower));
+        if (matchingDebt) autoTrackedAmounts[g.id] = Math.max(0, g.targetAmount - matchingDebt.balance);
+        break;
+      }
+      case "emergency_fund": autoTrackedAmounts[g.id] = liquidAssetTotal; break;
+      case "retirement": autoTrackedAmounts[g.id] = investmentAssetTotal; break;
+      case "purchase": autoTrackedAmounts[g.id] = liquidAssetTotal; break;
+    }
+  }
+
   const goalProjections = goalInputs.map((g) => {
     // For debt_free goals, use debt payoff calculation
     if (g.type === "debt_free") {
@@ -133,7 +152,7 @@ export default async function DashboardPage() {
       const estimatedMonths = hitMonth >= 0 ? hitMonth : Infinity;
       const targetDate = new Date(g.targetDate);
       const monthsUntilTarget = Math.max(0, (targetDate.getFullYear() - new Date().getFullYear()) * 12 + targetDate.getMonth() - new Date().getMonth());
-      const remaining = g.targetAmount - g.currentAmount;
+      const remaining = g.targetAmount - (autoTrackedAmounts[g.id] ?? g.currentAmount);
       const monthlySavingsNeeded = monthsUntilTarget > 0 ? remaining / monthsUntilTarget : Infinity;
       const estimatedDate = new Date();
       if (estimatedMonths !== Infinity) estimatedDate.setMonth(estimatedDate.getMonth() + estimatedMonths);

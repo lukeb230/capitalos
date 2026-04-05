@@ -25,7 +25,18 @@ export function MilestoneTimeline({ goals }: { goals: GoalData[] }) {
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis type="number" tickFormatter={formatCurrency} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
         <YAxis dataKey="name" type="category" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} width={75} />
-        <Tooltip formatter={(v) => [`$${Number(v).toLocaleString()}`]} />
+        <Tooltip
+          formatter={(v) => [`$${Number(v).toLocaleString()}`]}
+          contentStyle={{
+            backgroundColor: "hsl(var(--card) / 1)",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "8px",
+            fontSize: "12px",
+            color: "hsl(var(--foreground))",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+            opacity: 1,
+          }}
+        />
         <Bar dataKey="current" name="Current" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]}>
           {data.map((entry, index) => (
             <Cell key={index} fill={entry.onTrack ? "#22c55e" : "#f59e0b"} />

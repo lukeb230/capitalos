@@ -78,6 +78,15 @@ export function WaterfallChart({ items }: Props) {
               const prefix = amt >= 0 ? "+" : "";
               return [`${prefix}$${Math.abs(amt).toLocaleString()}`, p?.type ?? ""];
             }}
+            contentStyle={{
+              backgroundColor: "hsl(var(--card) / 1)",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "8px",
+              fontSize: "12px",
+              color: "hsl(var(--foreground))",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+              opacity: 1,
+            }}
           />
           <ReferenceLine y={0} stroke="hsl(var(--border))" />
           <Bar dataKey="range" radius={[4, 4, 0, 0]}>

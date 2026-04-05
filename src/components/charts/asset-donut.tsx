@@ -43,10 +43,13 @@ export function AssetDonut({ data, total }: Props) {
             <Tooltip
               formatter={(value) => [formatCurrency(Number(value))]}
               contentStyle={{
-                backgroundColor: "hsl(var(--card))",
+                backgroundColor: "hsl(var(--card) / 1)",
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
                 fontSize: "12px",
+                color: "hsl(var(--foreground))",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+                opacity: 1,
               }}
             />
           </PieChart>
