@@ -66,8 +66,10 @@ model Debt {
   interestRate    Float
   minimumPayment  Float
   type            String   @default("personal")
-  originalLoan    Float?   // Original loan amount (optional)
-  loanTermMonths  Int?     // Loan term in months (optional)
+  originalLoan     Float?   // Original loan amount (optional)
+  loanTermMonths   Int?     // Loan term in months (optional)
+  collateralValue  Float?   // Current value of car/house (optional)
+  appreciationRate Float?   // Annual appreciation rate (negative for depreciation)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

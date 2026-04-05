@@ -23,6 +23,8 @@ interface Debt {
   type: string;
   originalLoan: number | null;
   loanTermMonths: number | null;
+  collateralValue: number | null;
+  appreciationRate: number | null;
 }
 
 interface PlaidAccountRef {
@@ -53,6 +55,7 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
   const [form, setForm] = useState({
     name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal",
     originalLoan: "", loanTermMonths: "", linkedPlaidAccountId: "",
+    collateralValue: "", appreciationRate: "",
   });
 
   const totalBalance = items.reduce((sum, d) => sum + d.balance, 0);
@@ -60,7 +63,7 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal", originalLoan: "", loanTermMonths: "", linkedPlaidAccountId: "" });
+    setForm({ name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal", originalLoan: "", loanTermMonths: "", linkedPlaidAccountId: "", collateralValue: "", appreciationRate: "" });
     setOpen(true);
   }
 
@@ -76,6 +79,8 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
       originalLoan: item.originalLoan ? String(item.originalLoan) : "",
       loanTermMonths: item.loanTermMonths ? String(item.loanTermMonths) : "",
       linkedPlaidAccountId: linked?.id || "",
+      collateralValue: item.collateralValue ? String(item.collateralValue) : "",
+      appreciationRate: item.appreciationRate != null ? String(item.appreciationRate) : "",
     });
     setOpen(true);
   }
@@ -93,6 +98,8 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
       type: form.type,
       originalLoan: form.originalLoan ? parseFloat(form.originalLoan) : null,
       loanTermMonths: form.loanTermMonths ? parseInt(form.loanTermMonths) : null,
+      collateralValue: form.collateralValue ? parseFloat(form.collateralValue) : null,
+      appreciationRate: form.appreciationRate !== "" ? parseFloat(form.appreciationRate) : null,
     };
     try {
       const res = editing
@@ -255,6 +262,32 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
                       )}
                     </div>
                   </div>
+                  {(form.type === "mortgage" || form.type === "auto") && (
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <Label>{form.type === "mortgage" ? "Property Value ($)" : "Vehicle Value ($)"}</Label>
+                        <Input
+                          type="number"
+                          value={form.collateralValue}
+                          onChange={(e) => setForm({ ...form, collateralValue: e.target.value })}
+                          placeholder={form.type === "mortgage" ? "e.g. 350000" : "e.g. 20000"}
+                        />
+                      </div>
+                      <div>
+                        <Label>{form.type === "mortgage" ? "Appreciation (%/yr)" : "Depreciation (%/yr)"}</Label>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          value={form.appreciationRate}
+                          onChange={(e) => setForm({ ...form, appreciationRate: e.target.value })}
+                          placeholder={form.type === "mortgage" ? "e.g. 3" : "e.g. -15"}
+                        />
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {form.type === "mortgage" ? "Positive = appreciation" : "Negative = depreciation"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

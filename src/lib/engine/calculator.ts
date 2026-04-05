@@ -61,7 +61,14 @@ export function calculateMonthlyCashFlow(
 export function calculateNetWorth(assets: AssetInput[], debts: DebtInput[]): number {
   const totalAssets = assets.reduce((sum, a) => sum + a.value, 0);
   const totalDebts = debts.reduce((sum, d) => sum + d.balance, 0);
-  return totalAssets - totalDebts;
+  // Add collateral equity from secured debts (mortgage, auto)
+  const collateralEquity = debts.reduce((sum, d) => {
+    if (d.collateralValue && d.collateralValue > 0) {
+      return sum + d.collateralValue; // The value offsets the debt balance
+    }
+    return sum;
+  }, 0);
+  return totalAssets - totalDebts + collateralEquity;
 }
 
 export function calculateTotalAssets(assets: AssetInput[]): number {

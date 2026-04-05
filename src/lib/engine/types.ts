@@ -24,6 +24,8 @@ export interface DebtInput {
   type: string;
   originalLoan?: number | null;
   loanTermMonths?: number | null;
+  collateralValue?: number | null;
+  appreciationRate?: number | null;
 }
 
 export interface AssetInput {

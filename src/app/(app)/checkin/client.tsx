@@ -204,16 +204,19 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
 
   // Transaction viewer state
   const [txViewerOpen, setTxViewerOpen] = useState(false);
-  const [txViewerData, setTxViewerData] = useState<{ id: string; date: string; description: string; amount: number; isIncome: boolean; category: string; excluded: boolean }[]>([]);
+  const [txViewerData, setTxViewerData] = useState<{ id: string; date: string; description: string; amount: number; isIncome: boolean; category: string; excluded: boolean; source: string; accountLabel?: string }[]>([]);
   const [txViewerLoading, setTxViewerLoading] = useState(false);
   const [txFilterCategory, setTxFilterCategory] = useState("all");
   const [txFilterSearch, setTxFilterSearch] = useState("");
+  const [txFilterDays, setTxFilterDays] = useState(90);
+  const [txFilterAccount, setTxFilterAccount] = useState("all");
 
-  async function openTransactionViewer() {
+  async function openTransactionViewer(days: number = 90) {
     setTxViewerOpen(true);
     setTxViewerLoading(true);
+    setTxFilterDays(days);
     try {
-      const res = await fetch("/api/transactions?days=90");
+      const res = await fetch(`/api/transactions?days=${days}`);
       const data = await res.json();
       if (Array.isArray(data)) setTxViewerData(data);
     } catch {
@@ -1674,9 +1677,11 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
   // Main render
   // ---------------------------------------------------------------------------
 
+  const txAccountLabels = [...new Set(txViewerData.map((t) => t.source || "unknown"))];
   const filteredTxViewer = txViewerData.filter((t) => {
     if (txFilterCategory !== "all" && t.category !== txFilterCategory) return false;
     if (txFilterSearch && !t.description.toLowerCase().includes(txFilterSearch.toLowerCase())) return false;
+    if (txFilterAccount !== "all" && t.source !== txFilterAccount) return false;
     return true;
   });
 
@@ -1685,7 +1690,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
       {/* Header with View Transactions button */}
       <div className="flex items-center justify-between mb-4">
         <div />
-        <Button variant="outline" size="sm" onClick={openTransactionViewer}>
+        <Button variant="outline" size="sm" onClick={() => openTransactionViewer()}>
           <ReceiptText className="h-3.5 w-3.5 mr-1.5" />
           View Transactions
         </Button>
@@ -1702,36 +1707,64 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
 
       {/* Transaction Viewer Dialog */}
       <Dialog open={txViewerOpen} onOpenChange={setTxViewerOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Recent Transactions (last 90 days)</DialogTitle>
+            <DialogTitle>Recent Transactions</DialogTitle>
           </DialogHeader>
 
-          {/* Filters */}
-          <div className="flex gap-3 py-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search transactions..."
-                value={txFilterSearch}
-                onChange={(e) => setTxFilterSearch(e.target.value)}
-                className="pl-9 h-9"
-              />
+          {/* Time period pills + Filters */}
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2">
+              {[30, 60, 90].map((d) => (
+                <Button
+                  key={d}
+                  variant={txFilterDays === d ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => openTransactionViewer(d)}
+                >
+                  {d} days
+                </Button>
+              ))}
             </div>
-            <Select value={txFilterCategory} onValueChange={(v: string | null) => { if (v) setTxFilterCategory(v); }}>
-              <SelectTrigger className="w-[160px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>{capitalize(c)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search transactions..."
+                  value={txFilterSearch}
+                  onChange={(e) => setTxFilterSearch(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+              <Select value={txFilterCategory} onValueChange={(v: string | null) => { if (v) setTxFilterCategory(v); }}>
+                <SelectTrigger className="w-[150px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{capitalize(c)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {txAccountLabels.length > 1 && (
+                <Select value={txFilterAccount} onValueChange={(v: string | null) => { if (v) setTxFilterAccount(v); }}>
+                  <SelectTrigger className="w-[150px] h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Accounts</SelectItem>
+                    {txAccountLabels.map((a) => (
+                      <SelectItem key={a} value={a}>{capitalize(a)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
 
-          {/* Transaction list */}
+          {/* Transaction table */}
           <div className="overflow-y-auto flex-1">
             {txViewerLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -1739,25 +1772,26 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
               </div>
             ) : filteredTxViewer.length === 0 ? (
               <p className="text-center text-muted-foreground py-12 text-sm">
-                {txViewerData.length === 0 ? "No transactions in the last 90 days." : "No transactions match your filters."}
+                {txViewerData.length === 0 ? `No transactions in the last ${txFilterDays} days.` : "No transactions match your filters."}
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[90px]">Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-[100px] text-right">Amount</TableHead>
-                    <TableHead className="w-[150px]">Category</TableHead>
+                    <TableHead className="w-[100px]">Date</TableHead>
+                    <TableHead className="max-w-[240px]">Description</TableHead>
+                    <TableHead className="w-[110px] text-right">Amount</TableHead>
+                    <TableHead className="w-[160px]">Category</TableHead>
+                    <TableHead className="w-[100px]">Source</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredTxViewer.slice(0, 500).map((t) => (
-                    <TableRow key={t.id} className={t.excluded ? "opacity-40" : ""}>
+                    <TableRow key={t.id} className={t.excluded ? "opacity-40 line-through" : ""}>
                       <TableCell className="text-xs text-muted-foreground">
-                        {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}
                       </TableCell>
-                      <TableCell className="text-sm">{t.description}</TableCell>
+                      <TableCell className="text-sm max-w-[240px] truncate">{t.description}</TableCell>
                       <TableCell className={`text-sm text-right font-medium ${t.isIncome ? "text-emerald-600" : ""}`}>
                         {t.isIncome ? "+" : "-"}{formatCurrency(t.amount)}
                       </TableCell>
@@ -1778,6 +1812,9 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[10px]">{t.source || "manual"}</Badge>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1788,7 +1825,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
           {/* Footer */}
           <div className="text-xs text-muted-foreground text-center pt-2 border-t">
             Showing {Math.min(filteredTxViewer.length, 500)} of {filteredTxViewer.length} transactions
-            {txFilterCategory !== "all" || txFilterSearch ? ` (filtered from ${txViewerData.length} total)` : ""}
+            {txFilterCategory !== "all" || txFilterSearch || txFilterAccount !== "all" ? ` (filtered from ${txViewerData.length} total)` : ""}
           </div>
         </DialogContent>
       </Dialog>

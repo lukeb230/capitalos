@@ -38,6 +38,8 @@ export async function POST(req: Request) {
         type: body.type || "personal",
         originalLoan: typeof body.originalLoan === "number" && isFinite(body.originalLoan) ? body.originalLoan : null,
         loanTermMonths: typeof body.loanTermMonths === "number" && isFinite(body.loanTermMonths) ? Math.round(body.loanTermMonths) : null,
+        collateralValue: typeof body.collateralValue === "number" && isFinite(body.collateralValue) ? body.collateralValue : null,
+        appreciationRate: typeof body.appreciationRate === "number" && isFinite(body.appreciationRate) ? body.appreciationRate : null,
       },
     });
     return NextResponse.json(item, { status: 201 });
@@ -76,6 +78,8 @@ export async function PUT(req: Request) {
     if (body.type !== undefined) data.type = body.type;
     if (body.originalLoan !== undefined) data.originalLoan = typeof body.originalLoan === "number" ? body.originalLoan : null;
     if (body.loanTermMonths !== undefined) data.loanTermMonths = typeof body.loanTermMonths === "number" ? Math.round(body.loanTermMonths) : null;
+    if (body.collateralValue !== undefined) data.collateralValue = typeof body.collateralValue === "number" ? body.collateralValue : null;
+    if (body.appreciationRate !== undefined) data.appreciationRate = typeof body.appreciationRate === "number" ? body.appreciationRate : null;
 
     const item = await prisma.debt.update({ where: { id }, data });
     return NextResponse.json(item);

@@ -22,7 +22,6 @@ export function ProjectionChart({ data }: { data: { label: string; netWorth: num
             color: "hsl(var(--foreground))",
           }}
           labelStyle={{ color: "hsl(var(--foreground))" }}
-          itemStyle={{ color: "hsl(var(--foreground))" }}
         />
         <Legend wrapperStyle={{ color: "hsl(var(--foreground))" }} />
         <Line type="monotone" dataKey="netWorth" name="Net Worth" stroke="#3b82f6" strokeWidth={2} dot={false} />

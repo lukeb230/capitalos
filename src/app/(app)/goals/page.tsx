@@ -7,7 +7,7 @@ import {
   calculateDebtPayoff,
   calculateNetWorth,
 } from "@/lib/engine/calculator";
-import { projectToGoal } from "@/lib/engine/projections";
+import { projectToGoal, projectMonthly } from "@/lib/engine/projections";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function GoalsPage() {
 
   const incomeInputs = incomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate }));
   const expenseInputs = expenses.map((e) => ({ id: e.id, name: e.name, amount: e.amount, frequency: e.frequency, category: e.category, isFixed: e.isFixed }));
-  const debtInputs = debts.map((d) => ({ id: d.id, name: d.name, balance: d.balance, interestRate: d.interestRate, minimumPayment: d.minimumPayment, type: d.type }));
+  const debtInputs = debts.map((d) => ({ id: d.id, name: d.name, balance: d.balance, interestRate: d.interestRate, minimumPayment: d.minimumPayment, type: d.type, collateralValue: d.collateralValue, appreciationRate: d.appreciationRate }));
   const assetInputs = assets.map((a) => ({ id: a.id, name: a.name, value: a.value, type: a.type, growthRate: a.growthRate, monthlyContribution: a.monthlyContribution }));
 
   const state = { incomes: incomeInputs, expenses: expenseInputs, debts: debtInputs, assets: assetInputs, goals: [] as typeof goalInputs };
@@ -116,6 +116,34 @@ export default async function GoalsPage() {
           onTrack: matchingDebt.monthsToPayoff !== Infinity,
         };
       }
+    }
+
+    // For net_worth and retirement goals, use projectMonthly which accounts for
+    // compound asset growth and debt payoff — not just cash surplus accumulation
+    if (g.type === "net_worth" || g.type === "retirement") {
+      const snapshots = projectMonthly(state, 600);
+      const targetField = g.type === "retirement" ? "totalAssetValue" : "netWorth";
+      const hitMonth = snapshots.findIndex((s) => s[targetField] >= g.targetAmount);
+      const estimatedMonths = hitMonth >= 0 ? hitMonth : Infinity;
+
+      const targetDate = new Date(g.targetDate);
+      const monthsUntilTarget = Math.max(0,
+        (targetDate.getFullYear() - new Date().getFullYear()) * 12 +
+        targetDate.getMonth() - new Date().getMonth()
+      );
+      const remaining = g.targetAmount - (autoTrackedAmounts[g.id] ?? g.currentAmount);
+      const monthlySavingsNeeded = monthsUntilTarget > 0 ? remaining / monthsUntilTarget : Infinity;
+      const estimatedDate = new Date();
+      if (estimatedMonths !== Infinity) estimatedDate.setMonth(estimatedDate.getMonth() + estimatedMonths);
+
+      return {
+        goalId: g.id,
+        goalName: g.name,
+        estimatedMonths,
+        estimatedDate: estimatedMonths === Infinity ? "Never" : estimatedDate.toISOString().split("T")[0],
+        monthlySavingsNeeded: isFinite(monthlySavingsNeeded) ? Math.round(monthlySavingsNeeded * 100) / 100 : Infinity,
+        onTrack: monthsUntilTarget > 0 && estimatedMonths <= monthsUntilTarget,
+      };
     }
 
     const proj = projectToGoal(state, g);
