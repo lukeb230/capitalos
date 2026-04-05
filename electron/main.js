@@ -235,6 +235,7 @@ function createWindow() {
     title: "CapitalOS",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 15, y: 15 },
+    fullscreenable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
