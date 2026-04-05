@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+} from "recharts";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +78,7 @@ interface Props {
     }[];
   };
   financialState: FinancialState;
+  profileAge: { currentAge: number | null; retirementAge: number };
 }
 
 type SectionKey = "income" | "expenses" | "debts" | "assets";
@@ -143,8 +154,19 @@ function pctDiffBadge(baseline: number, sandbox: number) {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function ScenarioSandboxClient({ scenario, financialState }: Props) {
+export default function ScenarioSandboxClient({ scenario, financialState, profileAge }: Props) {
   const router = useRouter();
+
+  // Retirement simulator state
+  const [retSim, setRetSim] = useState({
+    currentAge: String(profileAge.currentAge ?? 30),
+    retirementAge: String(profileAge.retirementAge ?? 60),
+    returnRate: "7",
+    retReturnRate: "5",
+    inflationRate: "3",
+    withdrawalRate: "4",
+    retirementIncome: "0",
+  });
 
   // ---- State ---------------------------------------------------------------
   const [sandboxState, setSandboxState] = useState<FinancialState>(() => {
@@ -1148,11 +1170,225 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
           </div>
         </div>
       </div>
+
+      {/* ---- Retirement Simulator ---- */}
+      <RetirementSimulator sandboxState={sandboxState} retSim={retSim} setRetSim={setRetSim} />
     </div>
   );
 }
 
 // ===========================================================================
+// Retirement Simulator Component
+// ===========================================================================
+
+function RetirementSimulator({
+  sandboxState,
+  retSim,
+  setRetSim,
+}: {
+  sandboxState: FinancialState;
+  retSim: { currentAge: string; retirementAge: string; returnRate: string; retReturnRate: string; inflationRate: string; withdrawalRate: string; retirementIncome: string };
+  setRetSim: React.Dispatch<React.SetStateAction<{ currentAge: string; retirementAge: string; returnRate: string; retReturnRate: string; inflationRate: string; withdrawalRate: string; retirementIncome: string }>>;
+}) {
+  const retCalc = useMemo(() => {
+    const currentAge = parseInt(retSim.currentAge) || 30;
+    const retirementAge = parseInt(retSim.retirementAge) || 60;
+    const returnRate = parseFloat(retSim.returnRate) || 7;
+    const retReturnRate = parseFloat(retSim.retReturnRate) || 5;
+    const inflationRate = parseFloat(retSim.inflationRate) || 3;
+    const withdrawalRate = parseFloat(retSim.withdrawalRate) || 4;
+    const retirementIncomeMo = parseFloat(retSim.retirementIncome) || 0;
+    const yearsToRetirement = Math.max(0, retirementAge - currentAge);
+    const monthsToRetirement = yearsToRetirement * 12;
+
+    // Phase 1: Accumulation — use projectMonthly
+    const snapshots = projectMonthly(sandboxState, Math.min(monthsToRetirement, 600));
+    const portfolioAtRetirement = snapshots.length > 0 ? snapshots[snapshots.length - 1].totalAssetValue : 0;
+
+    // Phase 2: Retirement drawdown — year by year
+    const yearlyWithdrawal = portfolioAtRetirement * (withdrawalRate / 100);
+    const maxAge = 100;
+    const chartData: { age: number; portfolio: number; withdrawal: number }[] = [];
+
+    // Add accumulation phase to chart (yearly samples)
+    for (let y = 0; y <= yearsToRetirement; y++) {
+      const monthIdx = Math.min(y * 12, snapshots.length - 1);
+      const snap = snapshots[monthIdx] || snapshots[snapshots.length - 1];
+      chartData.push({
+        age: currentAge + y,
+        portfolio: Math.round(snap?.totalAssetValue || 0),
+        withdrawal: 0,
+      });
+    }
+
+    // Retirement phase
+    let portfolio = portfolioAtRetirement;
+    let annualWithdrawal = yearlyWithdrawal;
+    let annualRetIncome = retirementIncomeMo * 12;
+    let portfolioLastsUntil = maxAge;
+    const yearsInRetirement = maxAge - retirementAge;
+
+    for (let y = 1; y <= yearsInRetirement; y++) {
+      // Adjust for inflation
+      annualWithdrawal = yearlyWithdrawal * Math.pow(1 + inflationRate / 100, y);
+      annualRetIncome = (retirementIncomeMo * 12) * Math.pow(1 + inflationRate / 100, y);
+      const netDraw = Math.max(0, annualWithdrawal - annualRetIncome);
+
+      // Grow portfolio
+      portfolio = portfolio * (1 + retReturnRate / 100);
+      portfolio -= netDraw;
+
+      if (portfolio <= 0) {
+        portfolio = 0;
+        if (portfolioLastsUntil === maxAge) portfolioLastsUntil = retirementAge + y;
+      }
+
+      chartData.push({
+        age: retirementAge + y,
+        portfolio: Math.round(Math.max(0, portfolio)),
+        withdrawal: Math.round(annualWithdrawal),
+      });
+    }
+
+    // Inflation-adjusted purchasing power of year 1 withdrawal at retirement
+    const inflationFactor = Math.pow(1 + inflationRate / 100, yearsToRetirement);
+    const realPurchasingPower = yearlyWithdrawal / inflationFactor;
+
+    return {
+      portfolioAtRetirement,
+      yearlyWithdrawal,
+      portfolioLastsUntil,
+      realPurchasingPower,
+      chartData,
+      retirementAge,
+    };
+  }, [retSim, sandboxState]);
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 pb-12">
+      <div className="border-t pt-8 mt-4 space-y-6">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Retirement Simulator</h2>
+          <p className="text-muted-foreground text-sm">Project your retirement based on this scenario&apos;s numbers</p>
+        </div>
+
+        {/* Inputs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {[
+            { key: "currentAge", label: "Current Age", placeholder: "30" },
+            { key: "retirementAge", label: "Retirement Age", placeholder: "60" },
+            { key: "returnRate", label: "Pre-Ret. Return (%)", placeholder: "7" },
+            { key: "retReturnRate", label: "Ret. Return (%)", placeholder: "5" },
+            { key: "inflationRate", label: "Inflation (%)", placeholder: "3" },
+            { key: "withdrawalRate", label: "Withdrawal (%)", placeholder: "4" },
+            { key: "retirementIncome", label: "Ret. Income ($/mo)", placeholder: "0" },
+          ].map((input) => (
+            <div key={input.key}>
+              <Label className="text-xs">{input.label}</Label>
+              <Input
+                type="number"
+                step={input.key === "currentAge" || input.key === "retirementAge" ? "1" : "0.5"}
+                value={retSim[input.key as keyof typeof retSim]}
+                onChange={(e) => setRetSim((prev) => ({ ...prev, [input.key]: e.target.value }))}
+                placeholder={input.placeholder}
+                className="h-8 text-sm"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Metric Cards */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">Portfolio at Retirement</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(retCalc.portfolioAtRetirement)}</p>
+              <p className="text-[10px] text-muted-foreground">Projected at age {retCalc.retirementAge}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">Year 1 Withdrawal</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(retCalc.yearlyWithdrawal)}<span className="text-sm font-normal">/yr</span></p>
+              <p className="text-[10px] text-muted-foreground">{formatCurrency(retCalc.yearlyWithdrawal / 12)}/mo</p>
+            </CardContent>
+          </Card>
+          <Card className={retCalc.portfolioLastsUntil >= 100 ? "border-emerald-200" : "border-red-200"}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">Portfolio Lasts Until</p>
+              <p className={`text-2xl font-bold ${retCalc.portfolioLastsUntil >= 100 ? "text-emerald-600" : "text-red-500"}`}>
+                {retCalc.portfolioLastsUntil >= 100 ? "100+" : `Age ${retCalc.portfolioLastsUntil}`}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {retCalc.portfolioLastsUntil >= 100 ? "Sustainable" : `Runs out ${retCalc.portfolioLastsUntil - retCalc.retirementAge} yrs into retirement`}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">Real Purchasing Power</p>
+              <p className="text-2xl font-bold">{formatCurrency(retCalc.realPurchasingPower)}<span className="text-sm font-normal">/yr</span></p>
+              <p className="text-[10px] text-muted-foreground">In today&apos;s dollars</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Portfolio Projection Through Retirement</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={retCalc.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="age" tick={{ fontSize: 11 }} label={{ value: "Age", position: "insideBottom", offset: -2, fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} width={65} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      formatCurrency(Number(value)),
+                      name === "portfolio" ? "Portfolio" : "Annual Withdrawal",
+                    ]}
+                    labelFormatter={(label) => `Age ${label}`}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      color: "hsl(var(--foreground))",
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))" }}
+                  />
+                  <ReferenceLine
+                    x={retCalc.retirementAge}
+                    stroke="#ef4444"
+                    strokeDasharray="6 3"
+                    strokeWidth={2}
+                    label={{ value: "Retirement", position: "top", fontSize: 10, fill: "#ef4444" }}
+                  />
+                  <defs>
+                    <linearGradient id="retPortfolioGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="portfolio" stroke="#3b82f6" strokeWidth={2} fill="url(#retPortfolioGrad)" name="portfolio" />
+                  <Area type="monotone" dataKey="withdrawal" stroke="#f97316" strokeWidth={1} strokeDasharray="4 2" fill="none" name="withdrawal" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-blue-500 rounded" /> Portfolio</div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-orange-500 rounded" /> Annual Withdrawal</div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-red-500 rounded" /> Retirement Age</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 // Sub-components
 // ===========================================================================
 

@@ -15,7 +15,8 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
 
   if (!scenario) return notFound();
 
-  const [incomes, expenses, debts, assets, goals] = await Promise.all([
+  const [profile, incomes, expenses, debts, assets, goals] = await Promise.all([
+    prisma.profile.findUnique({ where: { id: profileId }, select: { currentAge: true, retirementAge: true } }),
     prisma.income.findMany({ where: { profileId } }),
     prisma.expense.findMany({ where: { profileId } }),
     prisma.debt.findMany({ where: { profileId } }),
@@ -35,6 +36,7 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
     <ScenarioSandboxClient
       scenario={JSON.parse(JSON.stringify(scenario))}
       financialState={state}
+      profileAge={{ currentAge: profile?.currentAge ?? null, retirementAge: profile?.retirementAge ?? 60 }}
     />
   );
 }
