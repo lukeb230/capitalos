@@ -23,12 +23,18 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profileId = await getActiveProfileId();
-  const [incomes, expenses, debts, assets, goals] = await Promise.all([
+  const [incomes, expenses, debts, assets, goals, profile, checkins] = await Promise.all([
     prisma.income.findMany({ where: { profileId } }),
     prisma.expense.findMany({ where: { profileId } }),
     prisma.debt.findMany({ where: { profileId } }),
     prisma.asset.findMany({ where: { profileId } }),
     prisma.goal.findMany({ where: { profileId } }),
+    prisma.profile.findUnique({ where: { id: profileId }, select: { filingStatus: true, state: true } }),
+    prisma.monthlyCheckin.findMany({
+      where: { profileId, netWorth: { not: null } },
+      orderBy: [{ year: "asc" }, { month: "asc" }],
+      select: { month: true, year: true, netWorth: true },
+    }),
   ]);
 
   const incomeInputs = incomes.map((i) => ({
@@ -196,6 +202,13 @@ export default async function DashboardPage() {
       variableExpenses={variableExpenses}
       assetAllocation={assetAllocation}
       assetBreakdown={assetBreakdown}
+      netWorthHistory={checkins.filter((c) => c.netWorth != null).map((c) => ({
+        label: `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][c.month - 1]} ${String(c.year).slice(2)}`,
+        netWorth: c.netWorth as number,
+      }))}
+      monthlyGrossIncome={monthlyGrossIncome}
+      filingStatus={profile?.filingStatus || null}
+      taxState={profile?.state || null}
     />
   );
 }

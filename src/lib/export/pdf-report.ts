@@ -1,0 +1,166 @@
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+interface ReportData {
+  profileName: string;
+  netWorth: number;
+  totalAssets: number;
+  totalDebts: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  cashFlow: number;
+  savingsRate: number;
+  emergencyMonths: number;
+  incomes: { name: string; amount: number; frequency: string; taxRate: number }[];
+  expenses: { name: string; amount: number; category: string }[];
+  debts: { name: string; balance: number; interestRate: number; minimumPayment: number; type: string }[];
+  assets: { name: string; value: number; type: string; growthRate: number; monthlyContribution: number }[];
+  goals: { name: string; targetAmount: number; currentAmount: number; type: string }[];
+}
+
+function fmt(n: number): string {
+  return "$" + Math.round(n).toLocaleString();
+}
+
+export function generatePDFReport(data: ReportData): jsPDF {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  // Header
+  doc.setFontSize(22);
+  doc.setTextColor(34, 197, 94); // green
+  doc.text("CapitalOS", 14, y);
+  doc.setFontSize(12);
+  doc.setTextColor(100);
+  doc.text("Financial Report", 14, y + 8);
+  doc.setFontSize(10);
+  doc.text(`${data.profileName} | ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`, 14, y + 15);
+
+  // Line separator
+  y += 22;
+  doc.setDrawColor(200);
+  doc.line(14, y, pageWidth - 14, y);
+  y += 10;
+
+  // Summary Section
+  doc.setFontSize(14);
+  doc.setTextColor(0);
+  doc.text("Financial Summary", 14, y);
+  y += 8;
+
+  const summaryData = [
+    ["Net Worth", fmt(data.netWorth)],
+    ["Total Assets", fmt(data.totalAssets)],
+    ["Total Debts", fmt(data.totalDebts)],
+    ["Monthly Income (after tax)", fmt(data.monthlyIncome)],
+    ["Monthly Expenses", fmt(data.monthlyExpenses)],
+    ["Monthly Cash Flow", fmt(data.cashFlow)],
+    ["Savings Rate", `${data.savingsRate}%`],
+    ["Emergency Fund", `${data.emergencyMonths} months`],
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Metric", "Value"]],
+    body: summaryData,
+    theme: "grid",
+    headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+    styles: { fontSize: 10 },
+    margin: { left: 14, right: 14 },
+  });
+
+  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+
+  // Income Sources
+  if (data.incomes.length > 0) {
+    doc.setFontSize(14);
+    doc.text("Income Sources", 14, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Source", "Amount", "Frequency", "Tax Rate"]],
+      body: data.incomes.map((i) => [i.name, fmt(i.amount), i.frequency, `${i.taxRate}%`]),
+      theme: "striped",
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 9 },
+      margin: { left: 14, right: 14 },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+  }
+
+  // Check if we need a new page
+  if (y > 240) { doc.addPage(); y = 20; }
+
+  // Debts
+  if (data.debts.length > 0) {
+    doc.setFontSize(14);
+    doc.text("Debts", 14, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Name", "Balance", "Rate", "Payment", "Type"]],
+      body: data.debts.map((d) => [d.name, fmt(d.balance), `${d.interestRate}%`, fmt(d.minimumPayment), d.type]),
+      theme: "striped",
+      headStyles: { fillColor: [239, 68, 68] },
+      styles: { fontSize: 9 },
+      margin: { left: 14, right: 14 },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+  }
+
+  if (y > 240) { doc.addPage(); y = 20; }
+
+  // Assets
+  if (data.assets.length > 0) {
+    doc.setFontSize(14);
+    doc.text("Assets", 14, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Name", "Value", "Type", "Growth", "Contrib/mo"]],
+      body: data.assets.map((a) => [a.name, fmt(a.value), a.type, `${a.growthRate}%`, fmt(a.monthlyContribution)]),
+      theme: "striped",
+      headStyles: { fillColor: [34, 197, 94] },
+      styles: { fontSize: 9 },
+      margin: { left: 14, right: 14 },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+  }
+
+  if (y > 240) { doc.addPage(); y = 20; }
+
+  // Goals
+  if (data.goals.length > 0) {
+    doc.setFontSize(14);
+    doc.text("Goals", 14, y);
+    y += 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Goal", "Target", "Current", "Type"]],
+      body: data.goals.map((g) => [g.name, fmt(g.targetAmount), fmt(g.currentAmount), g.type]),
+      theme: "striped",
+      headStyles: { fillColor: [168, 85, 247] },
+      styles: { fontSize: 9 },
+      margin: { left: 14, right: 14 },
+    });
+  }
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(`Generated by CapitalOS | Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+  }
+
+  return doc;
+}

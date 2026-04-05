@@ -9,16 +9,16 @@ export async function POST(req: Request) {
     try { body = await req.json(); } catch {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
-    const { incomes, expenses, debts, assets, goals, currentAge, retirementAge } = body;
+    const { incomes, expenses, debts, assets, goals, currentAge, retirementAge, filingStatus, state } = body;
 
-    // Update profile with age fields if provided
-    if (typeof currentAge === "number" || typeof retirementAge === "number") {
-      const profileData: Record<string, unknown> = {};
-      if (typeof currentAge === "number" && currentAge > 0) profileData.currentAge = currentAge;
-      if (typeof retirementAge === "number" && retirementAge > 0) profileData.retirementAge = retirementAge;
-      if (Object.keys(profileData).length > 0) {
-        await prisma.profile.update({ where: { id: profileId }, data: profileData });
-      }
+    // Update profile with age and tax fields if provided
+    const profileData: Record<string, unknown> = {};
+    if (typeof currentAge === "number" && currentAge > 0) profileData.currentAge = currentAge;
+    if (typeof retirementAge === "number" && retirementAge > 0) profileData.retirementAge = retirementAge;
+    if (typeof filingStatus === "string" && filingStatus) profileData.filingStatus = filingStatus;
+    if (typeof state === "string" && state) profileData.state = state;
+    if (Object.keys(profileData).length > 0) {
+      await prisma.profile.update({ where: { id: profileId }, data: profileData });
     }
 
     await prisma.$transaction(async (tx) => {

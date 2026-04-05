@@ -157,6 +157,9 @@ async function startNextServer() {
       // v1.0.8: Add profile age fields
       'ALTER TABLE Profile ADD COLUMN currentAge INTEGER',
       'ALTER TABLE Profile ADD COLUMN retirementAge INTEGER DEFAULT 60',
+      // v1.0.24: Add tax settings to profile
+      'ALTER TABLE Profile ADD COLUMN filingStatus TEXT',
+      'ALTER TABLE Profile ADD COLUMN state TEXT',
     ];
     for (const sql of migrations) {
       try {

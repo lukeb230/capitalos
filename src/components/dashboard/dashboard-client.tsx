@@ -11,6 +11,9 @@ import { SpendingBreakdown } from "@/components/charts/spending-breakdown";
 import { DTIGauge } from "@/components/charts/dti-gauge";
 import { SpendingDonut } from "@/components/charts/spending-donut";
 import { AssetDonut } from "@/components/charts/asset-donut";
+import { NetWorthHistoryChart } from "@/components/charts/net-worth-history";
+import { calculateTotalTax, type FilingStatus } from "@/lib/engine/tax";
+import { generateCSV } from "@/lib/export/csv-export";
 import { formatCurrency, formatMonths } from "@/lib/utils";
 import {
   DollarSign,
@@ -72,6 +75,10 @@ interface Props {
   variableExpenses: number;
   assetAllocation: { type: string; value: number }[];
   assetBreakdown: { name: string; value: number }[];
+  netWorthHistory: { label: string; netWorth: number }[];
+  monthlyGrossIncome: number;
+  filingStatus: string | null;
+  taxState: string | null;
 }
 
 function StatCard({
@@ -152,6 +159,7 @@ export function DashboardClient({
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debts, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, spendingCategories,
   fixedExpenses, variableExpenses, assetAllocation, assetBreakdown,
+  netWorthHistory, monthlyGrossIncome, filingStatus, taxState,
 }: Props) {
   const [projectionRange, setProjectionRange] = useState<"1yr" | "5yr">("5yr");
   const [customizing, setCustomizing] = useState(false);
@@ -509,10 +517,55 @@ export function DashboardClient({
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Your financial command center</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setCustomizing(!customizing)}>
-          <Settings className="h-3.5 w-3.5 mr-1.5" />
-          {customizing ? "Done" : "Customize"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              const res = await fetch("/api/export");
+              const data = await res.json();
+              // JSON export
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `capitalos-backup-${new Date().toISOString().split("T")[0]}.json`; a.click();
+              URL.revokeObjectURL(url);
+            } catch { alert("Export failed"); }
+          }}>
+            <ArrowDownRight className="h-3.5 w-3.5 mr-1.5" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              const res = await fetch("/api/export");
+              const data = await res.json();
+              const csv = generateCSV(data);
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `capitalos-report-${new Date().toISOString().split("T")[0]}.csv`; a.click();
+              URL.revokeObjectURL(url);
+            } catch { alert("CSV export failed"); }
+          }}>
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              const { generatePDFReport } = await import("@/lib/export/pdf-report");
+              const res = await fetch("/api/export");
+              const data = await res.json();
+              const doc = generatePDFReport({
+                profileName: data.profile?.name || "User",
+                netWorth, totalAssets, totalDebts, monthlyIncome, monthlyExpenses, cashFlow, savingsRate, emergencyMonths,
+                incomes: data.incomes || [], expenses: data.expenses || [],
+                debts: data.debts || [], assets: data.assets || [], goals: data.goals || [],
+              });
+              doc.save(`capitalos-report-${new Date().toISOString().split("T")[0]}.pdf`);
+            } catch { alert("PDF export failed"); }
+          }}>
+            PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setCustomizing(!customizing)}>
+            <Settings className="h-3.5 w-3.5 mr-1.5" />
+            {customizing ? "Done" : "Customize"}
+          </Button>
+        </div>
       </div>
 
       {/* Customization Panel */}
@@ -556,6 +609,50 @@ export function DashboardClient({
         <StatCard title="Savings Rate" value={`${savingsRate}%`} subtitle={savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Good" : "Needs work"} icon={PiggyBank} trend={savingsRate >= 20 ? "up" : savingsRate >= 10 ? "neutral" : "down"} />
         <StatCard title="Total Debt" value={formatCurrency(totalDebts)} subtitle={`${formatCurrency(monthlyDebtPayments)}/mo payments`} icon={CreditCard} trend="down" />
         <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "6+ mo expenses covered" : emergencyMonths >= 3 ? "3-6 mo expenses covered" : "Under 3 mo expenses"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />
+      </div>
+
+      {/* Net Worth History + Tax Estimate */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Net Worth History */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Net Worth History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <NetWorthHistoryChart data={netWorthHistory} />
+          </CardContent>
+        </Card>
+
+        {/* Tax Estimate */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Annual Tax Estimate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const grossAnnual = monthlyGrossIncome * 12;
+              const tax = calculateTotalTax(grossAnnual, (filingStatus as FilingStatus) || "single", taxState);
+              return (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><p className="text-xs text-muted-foreground">Gross Income</p><p className="text-lg font-bold">{formatCurrency(grossAnnual)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Take-Home</p><p className="text-lg font-bold text-emerald-600">{formatCurrency(tax.takeHome)}</p></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">Federal</p><p className="text-sm font-medium">{formatCurrency(tax.federal.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.federal.effectiveRate}% eff.</p></div>
+                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">State ({tax.state.stateName})</p><p className="text-sm font-medium">{formatCurrency(tax.state.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.state.rate}%</p></div>
+                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">FICA</p><p className="text-sm font-medium">{formatCurrency(tax.fica)}</p><p className="text-[10px] text-muted-foreground">SS + Medicare</p></div>
+                  </div>
+                  <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                    <span className="text-xs text-muted-foreground">Total Tax / Effective Rate</span>
+                    <span className="text-sm font-bold">{formatCurrency(tax.totalTax)} ({tax.totalEffectiveRate}%)</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Based on {filingStatus ? filingStatus.replace(/_/g, " ") : "single"} filing. Set your filing status and state in Settings.</p>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
       </div>
 
       {/* 2-Column Layout: Charts + Sidebar */}

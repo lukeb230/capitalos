@@ -147,6 +147,8 @@ export default function OnboardingPage() {
   // Profile state
   const [currentAge, setCurrentAge] = useState("");
   const [retirementAge, setRetirementAge] = useState("60");
+  const [filingStatus, setFilingStatus] = useState("single");
+  const [userState, setUserState] = useState("");
 
   // Plaid state
   const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
@@ -293,6 +295,8 @@ export default function OnboardingPage() {
           incomes, expenses, debts, assets, goals,
           currentAge: currentAge ? parseInt(currentAge) : null,
           retirementAge: retirementAge ? parseInt(retirementAge) : null,
+          filingStatus: filingStatus || null,
+          state: userState || null,
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -604,7 +608,24 @@ export default function OnboardingPage() {
                   <div><Label>Current Age</Label><Input type="number" value={currentAge} onChange={(e) => setCurrentAge(e.target.value)} placeholder="30" min="18" max="80" /></div>
                   <div><Label>Target Retirement Age</Label><Input type="number" value={retirementAge} onChange={(e) => setRetirementAge(e.target.value)} placeholder="60" min="30" max="90" /></div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">Used for the Financial Independence calculator on the Goals page.</p>
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <Label>Filing Status</Label>
+                    <Select value={filingStatus} onValueChange={(v: string | null) => { if (v) setFilingStatus(v); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Single</SelectItem>
+                        <SelectItem value="married">Married Filing Jointly</SelectItem>
+                        <SelectItem value="head_of_household">Head of Household</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>State</Label>
+                    <Input value={userState} onChange={(e) => setUserState(e.target.value.toUpperCase().slice(0, 2))} placeholder="e.g. MD" maxLength={2} />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Used for tax estimates and the FI calculator.</p>
               </CardContent>
             </Card>
 

@@ -13,6 +13,8 @@ model Profile {
   avatarColor   String   @default("#3b82f6")
   currentAge    Int?
   retirementAge Int?     @default(60)
+  filingStatus  String?  // single, married, head_of_household
+  state         String?  // US state code (e.g. "MD", "VA")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -61,6 +61,7 @@ import type {
 
 interface Props {
   budget: Record<string, number>;
+  currentNetWorth: number;
   pastCheckins: {
     id: string;
     month: number;
@@ -167,7 +168,7 @@ function fmtDate(d: string) {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function CheckinWizard({ budget, pastCheckins }: Props) {
+export default function CheckinWizard({ budget, currentNetWorth, pastCheckins }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -741,6 +742,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
           expensesByCategory,
           gradeDetails: gradeDetailsMap,
           transactions: activeTransactions,
+          netWorth: currentNetWorth,
         }),
       });
       setSaved(true);

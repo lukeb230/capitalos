@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { NetWorthHistoryChart } from "@/components/charts/net-worth-history";
 
 interface CheckinData {
   id: string;
@@ -43,6 +44,7 @@ interface CheckinData {
   totalIncome: number;
   totalExpenses: number;
   overallGrade: string;
+  netWorth: number | null;
   expensesByCategory: Record<string, number>;
   gradeDetails: Record<string, { budgeted: number; actual: number; grade: string }>;
 }
@@ -231,6 +233,19 @@ export function TrendsClient({ checkins, budget }: Props & { budget: Record<stri
           Track your spending patterns over time
         </p>
       </div>
+
+      {/* Net Worth History */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Net Worth History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NetWorthHistoryChart data={checkins.filter((c) => c.netWorth != null).map((c) => ({
+            label: `${MONTH_NAMES[c.month - 1]?.slice(0, 3) || ""} ${String(c.year).slice(2)}`,
+            netWorth: c.netWorth as number,
+          }))} />
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
