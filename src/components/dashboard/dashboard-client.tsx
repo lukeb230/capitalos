@@ -550,11 +550,11 @@ export function DashboardClient({
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={`${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
         <StatCard title="Monthly Income" value={formatCurrency(monthlyIncome)} subtitle="After taxes" icon={DollarSign} trend="up" />
-        <StatCard title="Monthly Outflow" value={formatCurrency(monthlyExpenses + monthlyDebtPayments + totalContributions)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt${totalContributions > 0 ? ` + ${formatCurrency(totalContributions)} invest` : ""}`} icon={ArrowDownRight} trend="down" />
-        <StatCard title="Free Surplus" value={formatCurrency(freeSurplus)} subtitle={freeSurplus > 0 ? "After all commitments" : "Over-committed"} icon={ArrowUpRight} trend={freeSurplus >= 0 ? "up" : "down"} />
+        <StatCard title="Monthly Commitments" value={formatCurrency(monthlyExpenses + monthlyDebtPayments + totalContributions)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt${totalContributions > 0 ? ` + ${formatCurrency(totalContributions)} invest` : ""}`} icon={ArrowDownRight} trend="down" />
+        <StatCard title="Free Surplus" value={formatCurrency(freeSurplus)} subtitle={freeSurplus > 0 ? "After bills, debt & contributions" : "Over-committed"} icon={ArrowUpRight} trend={freeSurplus >= 0 ? "up" : "down"} />
         <StatCard title="Savings Rate" value={`${savingsRate}%`} subtitle={savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Good" : "Needs work"} icon={PiggyBank} trend={savingsRate >= 20 ? "up" : savingsRate >= 10 ? "neutral" : "down"} />
         <StatCard title="Total Debt" value={formatCurrency(totalDebts)} subtitle={`${formatCurrency(monthlyDebtPayments)}/mo payments`} icon={CreditCard} trend="down" />
-        <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "Fully funded" : emergencyMonths >= 3 ? "Building" : "Below 3mo target"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />
+        <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "6+ mo expenses covered" : emergencyMonths >= 3 ? "3-6 mo expenses covered" : "Under 3 mo expenses"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />
       </div>
 
       {/* 2-Column Layout: Charts + Sidebar */}

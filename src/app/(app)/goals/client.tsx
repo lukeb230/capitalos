@@ -311,7 +311,7 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
               </div>
               <div>
                 <p className="text-2xl font-bold">{formatCurrency(cashFlow)}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-                <p className="text-xs text-muted-foreground">Available for Goals</p>
+                <p className="text-xs text-muted-foreground">Free After Contributions</p>
               </div>
             </CardContent>
           </Card>
@@ -492,6 +492,8 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
             />
           </div>
         </div>
+
+        <p className="text-[10px] text-muted-foreground">Projections based on your current investment contributions. Additional free surplus is not included.</p>
 
         {/* FI Metric Cards */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

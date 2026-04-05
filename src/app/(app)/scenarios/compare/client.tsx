@@ -244,7 +244,7 @@ export function CompareClient({ scenarios, financialState }: CompareClientProps)
     key: keyof ScenarioMetrics;
     invert?: boolean;
   }[] = [
-    { label: "Free Cash Flow", type: "currency", key: "freeCashFlow" },
+    { label: "Monthly Surplus", type: "currency", key: "freeCashFlow" },
     { label: "Monthly Expenses", type: "currency", key: "monthlyExpenses", invert: true },
     { label: "Monthly Debt Payments", type: "currency", key: "monthlyDebtPayments", invert: true },
     { label: "Net Worth (Now)", type: "currency", key: "netWorthNow" },
@@ -253,7 +253,6 @@ export function CompareClient({ scenarios, financialState }: CompareClientProps)
     { label: "Net Worth (5 Years)", type: "currency", key: "netWorth5yr" },
     { label: "Debt-Free Date", type: "months", key: "debtFreeMonths" },
     { label: "Savings Rate", type: "percent", key: "savingsRate" },
-    { label: "Investable Surplus", type: "currency", key: "investableSurplus" },
   ];
 
   const formatValue = (value: number, type: "currency" | "months" | "percent") => {

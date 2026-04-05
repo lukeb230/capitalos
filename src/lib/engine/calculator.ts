@@ -150,7 +150,7 @@ export function calculateEmergencyFundMonths(
   expenses: ExpenseInput[]
 ): number {
   const liquidAssets = assets
-    .filter((a) => a.type === "savings")
+    .filter((a) => a.type === "savings" || a.type === "checking")
     .reduce((sum, a) => sum + a.value, 0);
   const monthlyExpenses = calculateMonthlyExpenses(expenses);
   if (monthlyExpenses === 0) return 999;

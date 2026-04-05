@@ -333,9 +333,13 @@ export function DebtsClient({ items, plaidAccounts }: { items: Debt[]; plaidAcco
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={payoff.monthsToPayoff <= 24 ? "default" : "secondary"}>
-                          {formatMonths(payoff.monthsToPayoff)}
-                        </Badge>
+                        {payoff.monthsToPayoff >= 360 || payoff.monthsToPayoff === Infinity ? (
+                          <Badge variant="destructive">Review Payment</Badge>
+                        ) : (
+                          <Badge variant={payoff.monthsToPayoff <= 24 ? "default" : "secondary"}>
+                            {formatMonths(payoff.monthsToPayoff)}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

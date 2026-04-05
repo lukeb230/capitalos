@@ -254,6 +254,7 @@ export function OpportunityClient({ cashFlow, expenses }: OpportunityClientProps
               />
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground -mt-2">Based on historical stock market averages. Actual returns may vary.</p>
 
           {/* Big Result */}
           <div className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border p-6 text-center space-y-2">
