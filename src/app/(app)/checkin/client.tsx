@@ -204,7 +204,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
 
   // Transaction viewer state
   const [txViewerOpen, setTxViewerOpen] = useState(false);
-  const [txViewerData, setTxViewerData] = useState<{ id: string; date: string; description: string; amount: number; isIncome: boolean; category: string; excluded: boolean; source: string; accountLabel?: string }[]>([]);
+  const [txViewerData, setTxViewerData] = useState<{ id: string; date: string; description: string; amount: number; isIncome: boolean; category: string; excluded: boolean; source: string; accountLabel: string }[]>([]);
   const [txViewerLoading, setTxViewerLoading] = useState(false);
   const [txFilterCategory, setTxFilterCategory] = useState("all");
   const [txFilterSearch, setTxFilterSearch] = useState("");
@@ -1677,11 +1677,11 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
   // Main render
   // ---------------------------------------------------------------------------
 
-  const txAccountLabels = [...new Set(txViewerData.map((t) => t.source || "unknown"))];
+  const txAccountLabels = [...new Set(txViewerData.map((t) => t.accountLabel || "Manual"))];
   const filteredTxViewer = txViewerData.filter((t) => {
     if (txFilterCategory !== "all" && t.category !== txFilterCategory) return false;
     if (txFilterSearch && !t.description.toLowerCase().includes(txFilterSearch.toLowerCase())) return false;
-    if (txFilterAccount !== "all" && t.source !== txFilterAccount) return false;
+    if (txFilterAccount !== "all" && t.accountLabel !== txFilterAccount) return false;
     return true;
   });
 
@@ -1707,7 +1707,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
 
       {/* Transaction Viewer Dialog */}
       <Dialog open={txViewerOpen} onOpenChange={setTxViewerOpen}>
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-[90vw] w-full max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Recent Transactions</DialogTitle>
           </DialogHeader>
@@ -1778,11 +1778,11 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Date</TableHead>
-                    <TableHead className="max-w-[240px]">Description</TableHead>
-                    <TableHead className="w-[110px] text-right">Amount</TableHead>
-                    <TableHead className="w-[160px]">Category</TableHead>
-                    <TableHead className="w-[100px]">Source</TableHead>
+                    <TableHead className="w-[90px]">Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[100px] text-right">Amount</TableHead>
+                    <TableHead className="w-[150px]">Category</TableHead>
+                    <TableHead className="w-[180px]">Account</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1791,7 +1791,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}
                       </TableCell>
-                      <TableCell className="text-sm max-w-[240px] truncate">{t.description}</TableCell>
+                      <TableCell className="text-sm">{t.description}</TableCell>
                       <TableCell className={`text-sm text-right font-medium ${t.isIncome ? "text-emerald-600" : ""}`}>
                         {t.isIncome ? "+" : "-"}{formatCurrency(t.amount)}
                       </TableCell>
@@ -1812,8 +1812,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-[10px]">{t.source || "manual"}</Badge>
+                      <TableCell className="text-xs text-muted-foreground">{(t as Record<string, unknown>).accountLabel as string || t.source || "Manual"}
                       </TableCell>
                     </TableRow>
                   ))}

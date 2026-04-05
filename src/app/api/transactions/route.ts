@@ -35,11 +35,25 @@ export async function GET(req: Request) {
           { plaidAccountId: { in: plaidAccountIds }, checkinId: null },
         ],
       },
+      include: {
+        plaidAccount: {
+          select: { name: true, mask: true, plaidItem: { select: { institutionName: true } } },
+        },
+      },
       orderBy: { date: "desc" },
       take: 2000,
     });
 
-    return NextResponse.json(transactions);
+    // Add accountLabel to each transaction
+    const enriched = transactions.map((t) => ({
+      ...t,
+      accountLabel: t.plaidAccount
+        ? `${t.plaidAccount.plaidItem.institutionName} - ${t.plaidAccount.name}${t.plaidAccount.mask ? ` ****${t.plaidAccount.mask}` : ""}`
+        : t.source || "Manual",
+      plaidAccount: undefined,
+    }));
+
+    return NextResponse.json(enriched);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
