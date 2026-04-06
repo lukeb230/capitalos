@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface Income {
@@ -19,6 +19,7 @@ interface Income {
   amount: number;
   frequency: string;
   taxRate: number;
+  isNetInput: boolean;
   startDate: string;
   endDate: string | null;
 }
@@ -54,20 +55,21 @@ export function IncomeClient({ items }: { items: Income[] }) {
       amount: String(item.amount),
       frequency: item.frequency,
       taxRate: String(item.taxRate),
-      inputType: item.taxRate === 0 ? "net" : "gross",
+      inputType: item.isNetInput ? "net" : "gross",
     });
     setOpen(true);
   }
 
   async function handleSave() {
     const amount = parseFloat(form.amount);
-    const taxRate = form.inputType === "net" ? 0 : parseFloat(form.taxRate);
+    const taxRate = parseFloat(form.taxRate);
     if (!form.name.trim() || isNaN(amount) || amount < 0) return;
     const data = {
       name: form.name,
       amount,
       frequency: form.frequency,
       taxRate: isNaN(taxRate) ? 0 : taxRate,
+      isNetInput: form.inputType === "net",
     };
     try {
       const res = editing
@@ -115,7 +117,7 @@ export function IncomeClient({ items }: { items: Income[] }) {
               </div>
               <div>
                 <Label>Amount Type</Label>
-                <Select value={form.inputType} onValueChange={(v: string | null) => { if (v) setForm({ ...form, inputType: v as "gross" | "net", taxRate: v === "net" ? "0" : form.taxRate === "0" ? "22" : form.taxRate }); }}>
+                <Select value={form.inputType} onValueChange={(v: string | null) => { if (v) setForm({ ...form, inputType: v as "gross" | "net" }); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="gross">Gross (before tax)</SelectItem>
@@ -139,12 +141,11 @@ export function IncomeClient({ items }: { items: Income[] }) {
                   </SelectContent>
                 </Select>
               </div>
-              {form.inputType === "gross" && (
-                <div>
-                  <Label>Tax Rate (%)</Label>
-                  <Input type="number" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} placeholder="22" />
-                </div>
-              )}
+              <div>
+                <Label>{form.inputType === "gross" ? "Tax Rate (%)" : "Estimated Tax Rate (%)"}</Label>
+                <Input type="number" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} placeholder="22" />
+                {form.inputType === "net" && <p className="text-[10px] text-muted-foreground mt-1">Used to estimate gross income for tax projections and DTI</p>}
+              </div>
               <Button className="w-full" onClick={handleSave} disabled={!form.name || !form.amount}>
                 {editing ? "Update" : "Add"} Income
               </Button>
@@ -176,7 +177,10 @@ export function IncomeClient({ items }: { items: Income[] }) {
               ) : (
                 items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {item.name}
+                      <Badge variant="outline" className="ml-2 text-[9px]">{item.isNetInput ? "Net" : "Gross"}</Badge>
+                    </TableCell>
                     <TableCell>{formatCurrency(item.amount)}</TableCell>
                     <TableCell><Badge variant="secondary">{item.frequency}</Badge></TableCell>
                     <TableCell>{item.taxRate}%</TableCell>

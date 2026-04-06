@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   ]);
 
   const incomeInputs = incomes.map((i) => ({
-    id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate,
+    id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate, isNetInput: i.isNetInput,
   }));
   const expenseInputs = expenses.map((e) => ({
     id: e.id, name: e.name, amount: e.amount, frequency: e.frequency, category: e.category, isFixed: e.isFixed,

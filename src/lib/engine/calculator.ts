@@ -23,12 +23,24 @@ export function toMonthly(amount: number, frequency: string): number {
 }
 
 export function calculateMonthlyGrossIncome(incomes: IncomeInput[]): number {
-  return incomes.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency), 0);
+  return incomes.reduce((sum, i) => {
+    const monthly = toMonthly(i.amount, i.frequency);
+    if (i.isNetInput && i.taxRate > 0) {
+      // Recover gross from net: gross = net / (1 - taxRate/100)
+      return sum + monthly / (1 - i.taxRate / 100);
+    }
+    return sum + monthly;
+  }, 0);
 }
 
 export function calculateMonthlyNetIncome(incomes: IncomeInput[]): number {
   return incomes.reduce((sum, i) => {
     const monthly = toMonthly(i.amount, i.frequency);
+    if (i.isNetInput) {
+      // Amount is already net
+      return sum + monthly;
+    }
+    // Amount is gross — apply tax rate
     return sum + monthly * (1 - i.taxRate / 100);
   }, 0);
 }
@@ -348,7 +360,7 @@ export function estimateMilestones(state: FinancialState): MilestoneEstimate[] {
 
   // Milestone: 6-month emergency fund
   const liquidSavings = state.assets
-    .filter((a) => a.type === "savings")
+    .filter((a) => a.type === "savings" || a.type === "checking")
     .reduce((sum, a) => sum + a.value, 0);
   const monthlyExpensesTotal = totalExpenses; // Match calculateEmergencyFundMonths (expenses only, debt can be deferred in emergency)
   const emergencyTarget = monthlyExpensesTotal * 6;

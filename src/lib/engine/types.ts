@@ -4,6 +4,7 @@ export interface IncomeInput {
   amount: number;
   frequency: string;
   taxRate: number;
+  isNetInput?: boolean;
 }
 
 export interface ExpenseInput {

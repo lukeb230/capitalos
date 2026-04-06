@@ -228,7 +228,7 @@ export default function OnboardingPage() {
 
   function addIncome() {
     if (!incomeForm.name || !incomeForm.amount) return;
-    const taxRate = incomeForm.inputType === "net" ? 0 : (parseFloat(incomeForm.taxRate) || 0);
+    const taxRate = parseFloat(incomeForm.taxRate) || 0;
     setIncomes((prev) => [
       ...prev,
       { id: crypto.randomUUID(), name: incomeForm.name, amount: parseFloat(incomeForm.amount), frequency: incomeForm.frequency, taxRate },
@@ -405,7 +405,7 @@ export default function OnboardingPage() {
                   <div><Label>Source Name</Label><Input value={incomeForm.name} onChange={(e) => setIncomeForm({ ...incomeForm, name: e.target.value })} placeholder="e.g. Salary" /></div>
                   <div>
                     <Label>Amount Type</Label>
-                    <Select value={incomeForm.inputType} onValueChange={(v: string | null) => { if (v) setIncomeForm({ ...incomeForm, inputType: v as "gross" | "net", taxRate: v === "net" ? "0" : incomeForm.taxRate === "0" ? "22" : incomeForm.taxRate }); }}>
+                    <Select value={incomeForm.inputType} onValueChange={(v: string | null) => { if (v) setIncomeForm({ ...incomeForm, inputType: v as "gross" | "net" }); }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="gross">Gross (before tax)</SelectItem>
@@ -414,7 +414,7 @@ export default function OnboardingPage() {
                     </Select>
                   </div>
                 </div>
-                <div className={`grid gap-3 ${incomeForm.inputType === "gross" ? "grid-cols-3" : "grid-cols-2"}`}>
+                <div className="grid gap-3 grid-cols-3">
                   <div><Label>{incomeForm.inputType === "gross" ? "Gross Amount ($)" : "Net Amount ($)"}</Label><Input type="number" value={incomeForm.amount} onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })} placeholder="5000" /></div>
                   <div>
                     <Label>Frequency</Label>
@@ -428,9 +428,7 @@ export default function OnboardingPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {incomeForm.inputType === "gross" && (
-                    <div><Label>Tax Rate (%)</Label><Input type="number" value={incomeForm.taxRate} onChange={(e) => setIncomeForm({ ...incomeForm, taxRate: e.target.value })} placeholder="22" /></div>
-                  )}
+                  <div><Label>{incomeForm.inputType === "gross" ? "Tax Rate (%)" : "Est. Tax Rate (%)"}</Label><Input type="number" value={incomeForm.taxRate} onChange={(e) => setIncomeForm({ ...incomeForm, taxRate: e.target.value })} placeholder="22" /></div>
                 </div>
                 <Button onClick={addIncome} disabled={!incomeForm.name || !incomeForm.amount} className="w-full"><Plus className="h-4 w-4 mr-1" /> Add Income</Button>
               </CardContent>

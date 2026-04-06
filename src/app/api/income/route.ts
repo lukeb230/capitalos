@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         amount: body.amount,
         frequency: body.frequency || "monthly",
         taxRate: body.taxRate ?? 0,
+        isNetInput: body.isNetInput === true,
         startDate: body.startDate ? new Date(body.startDate) : undefined,
         endDate: body.endDate ? new Date(body.endDate) : undefined,
       },
@@ -69,6 +70,7 @@ export async function PUT(req: Request) {
     if (body.amount !== undefined) data.amount = body.amount;
     if (body.frequency !== undefined) data.frequency = body.frequency;
     if (body.taxRate !== undefined) data.taxRate = body.taxRate;
+    if (body.isNetInput !== undefined) data.isNetInput = body.isNetInput === true;
     if (body.startDate !== undefined) data.startDate = body.startDate ? new Date(body.startDate) : null;
     if (body.endDate !== undefined) data.endDate = body.endDate ? new Date(body.endDate) : null;
 

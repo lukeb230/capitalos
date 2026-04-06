@@ -35,8 +35,9 @@ model Income {
   name      String
   amount    Float
   frequency String   @default("monthly")
-  taxRate   Float    @default(0)
-  startDate DateTime @default(now())
+  taxRate    Float    @default(0)
+  isNetInput Boolean  @default(false)
+  startDate  DateTime @default(now())
   endDate   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

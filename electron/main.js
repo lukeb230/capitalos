@@ -160,6 +160,8 @@ async function startNextServer() {
       // v1.0.24: Add tax settings to profile
       'ALTER TABLE Profile ADD COLUMN filingStatus TEXT',
       'ALTER TABLE Profile ADD COLUMN state TEXT',
+      // v1.0.29: Add isNetInput to income
+      'ALTER TABLE Income ADD COLUMN isNetInput BOOLEAN DEFAULT 0',
     ];
     for (const sql of migrations) {
       try {
