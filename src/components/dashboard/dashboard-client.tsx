@@ -552,7 +552,8 @@ export function DashboardClient({
               const data = await res.json();
               const doc = generatePDFReport({
                 profileName: data.profile?.name || "User",
-                netWorth, totalAssets, totalDebts, monthlyIncome, monthlyExpenses, cashFlow, savingsRate, emergencyMonths,
+                netWorth, totalAssets, totalDebts, monthlyIncome, monthlyGrossIncome, monthlyExpenses, cashFlow, savingsRate, emergencyMonths,
+                debtToIncomeRatio: dtiRatio,
                 incomes: data.incomes || [], expenses: data.expenses || [],
                 debts: data.debts || [], assets: data.assets || [], goals: data.goals || [],
               });
