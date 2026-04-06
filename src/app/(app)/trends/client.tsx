@@ -241,7 +241,7 @@ export function TrendsClient({ checkins, budget }: Props & { budget: Record<stri
         </CardHeader>
         <CardContent>
           <NetWorthHistoryChart data={checkins.filter((c) => c.netWorth != null).map((c) => ({
-            label: `${MONTH_NAMES[c.month - 1]?.slice(0, 3) || ""} ${String(c.year).slice(2)}`,
+            label: `${MONTH_NAMES[c.month] || ""} ${String(c.year).slice(2)}`,
             netWorth: c.netWorth as number,
           }))} />
         </CardContent>
