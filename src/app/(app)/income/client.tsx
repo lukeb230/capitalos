@@ -36,14 +36,14 @@ export function IncomeClient({ items }: { items: Income[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Income | null>(null);
-  const [form, setForm] = useState({ name: "", amount: "", frequency: "monthly", taxRate: "22" });
+  const [form, setForm] = useState({ name: "", amount: "", frequency: "monthly", taxRate: "22", inputType: "gross" as "gross" | "net" });
 
   const totalMonthlyGross = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency), 0);
   const totalMonthlyNet = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency) * (1 - i.taxRate / 100), 0);
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", amount: "", frequency: "monthly", taxRate: "22" });
+    setForm({ name: "", amount: "", frequency: "monthly", taxRate: "22", inputType: "gross" });
     setOpen(true);
   }
 
@@ -54,13 +54,14 @@ export function IncomeClient({ items }: { items: Income[] }) {
       amount: String(item.amount),
       frequency: item.frequency,
       taxRate: String(item.taxRate),
+      inputType: item.taxRate === 0 ? "net" : "gross",
     });
     setOpen(true);
   }
 
   async function handleSave() {
     const amount = parseFloat(form.amount);
-    const taxRate = parseFloat(form.taxRate);
+    const taxRate = form.inputType === "net" ? 0 : parseFloat(form.taxRate);
     if (!form.name.trim() || isNaN(amount) || amount < 0) return;
     const data = {
       name: form.name,
@@ -113,7 +114,17 @@ export function IncomeClient({ items }: { items: Income[] }) {
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Salary" />
               </div>
               <div>
-                <Label>Amount ($)</Label>
+                <Label>Amount Type</Label>
+                <Select value={form.inputType} onValueChange={(v: string | null) => { if (v) setForm({ ...form, inputType: v as "gross" | "net", taxRate: v === "net" ? "0" : form.taxRate === "0" ? "22" : form.taxRate }); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gross">Gross (before tax)</SelectItem>
+                    <SelectItem value="net">Net (after tax)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{form.inputType === "gross" ? "Gross Amount ($)" : "Net Amount ($)"}</Label>
                 <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="5000" />
               </div>
               <div>
@@ -128,10 +139,12 @@ export function IncomeClient({ items }: { items: Income[] }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Tax Rate (%)</Label>
-                <Input type="number" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} placeholder="22" />
-              </div>
+              {form.inputType === "gross" && (
+                <div>
+                  <Label>Tax Rate (%)</Label>
+                  <Input type="number" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} placeholder="22" />
+                </div>
+              )}
               <Button className="w-full" onClick={handleSave} disabled={!form.name || !form.amount}>
                 {editing ? "Update" : "Add"} Income
               </Button>

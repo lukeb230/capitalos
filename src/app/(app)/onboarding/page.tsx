@@ -155,7 +155,7 @@ export default function OnboardingPage() {
   const [plaidConnections, setPlaidConnections] = useState<PlaidConnection[]>([]);
 
   // Form state per step
-  const [incomeForm, setIncomeForm] = useState({ name: "", amount: "", frequency: "monthly", taxRate: "22" });
+  const [incomeForm, setIncomeForm] = useState({ name: "", amount: "", frequency: "monthly", taxRate: "22", inputType: "gross" as "gross" | "net" });
   const [expenseForm, setExpenseForm] = useState({ name: "", amount: "", category: "other", frequency: "monthly", isFixed: true });
   const [debtForm, setDebtForm] = useState({ name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal", originalLoan: "", loanTermMonths: "" });
   const [assetForm, setAssetForm] = useState({ name: "", value: "", type: "savings", growthRate: "0", monthlyContribution: "0" });
@@ -228,11 +228,12 @@ export default function OnboardingPage() {
 
   function addIncome() {
     if (!incomeForm.name || !incomeForm.amount) return;
+    const taxRate = incomeForm.inputType === "net" ? 0 : (parseFloat(incomeForm.taxRate) || 0);
     setIncomes((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), name: incomeForm.name, amount: parseFloat(incomeForm.amount), frequency: incomeForm.frequency, taxRate: parseFloat(incomeForm.taxRate) || 0 },
+      { id: crypto.randomUUID(), name: incomeForm.name, amount: parseFloat(incomeForm.amount), frequency: incomeForm.frequency, taxRate },
     ]);
-    setIncomeForm({ name: "", amount: "", frequency: "monthly", taxRate: "22" });
+    setIncomeForm({ name: "", amount: "", frequency: "monthly", taxRate: "22", inputType: "gross" });
   }
 
   function addExpense(suggestion?: (typeof EXPENSE_SUGGESTIONS)[0]) {
@@ -400,9 +401,21 @@ export default function OnboardingPage() {
             </div>
             <Card>
               <CardContent className="p-4 space-y-3">
-                <div><Label>Source Name</Label><Input value={incomeForm.name} onChange={(e) => setIncomeForm({ ...incomeForm, name: e.target.value })} placeholder="e.g. Salary" /></div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div><Label>Amount ($)</Label><Input type="number" value={incomeForm.amount} onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })} placeholder="5000" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Source Name</Label><Input value={incomeForm.name} onChange={(e) => setIncomeForm({ ...incomeForm, name: e.target.value })} placeholder="e.g. Salary" /></div>
+                  <div>
+                    <Label>Amount Type</Label>
+                    <Select value={incomeForm.inputType} onValueChange={(v: string | null) => { if (v) setIncomeForm({ ...incomeForm, inputType: v as "gross" | "net", taxRate: v === "net" ? "0" : incomeForm.taxRate === "0" ? "22" : incomeForm.taxRate }); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gross">Gross (before tax)</SelectItem>
+                        <SelectItem value="net">Net (after tax)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className={`grid gap-3 ${incomeForm.inputType === "gross" ? "grid-cols-3" : "grid-cols-2"}`}>
+                  <div><Label>{incomeForm.inputType === "gross" ? "Gross Amount ($)" : "Net Amount ($)"}</Label><Input type="number" value={incomeForm.amount} onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })} placeholder="5000" /></div>
                   <div>
                     <Label>Frequency</Label>
                     <Select value={incomeForm.frequency} onValueChange={(v: string | null) => { if (v) setIncomeForm({ ...incomeForm, frequency: v }); }}>
@@ -415,7 +428,9 @@ export default function OnboardingPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Tax Rate (%)</Label><Input type="number" value={incomeForm.taxRate} onChange={(e) => setIncomeForm({ ...incomeForm, taxRate: e.target.value })} placeholder="22" /></div>
+                  {incomeForm.inputType === "gross" && (
+                    <div><Label>Tax Rate (%)</Label><Input type="number" value={incomeForm.taxRate} onChange={(e) => setIncomeForm({ ...incomeForm, taxRate: e.target.value })} placeholder="22" /></div>
+                  )}
                 </div>
                 <Button onClick={addIncome} disabled={!incomeForm.name || !incomeForm.amount} className="w-full"><Plus className="h-4 w-4 mr-1" /> Add Income</Button>
               </CardContent>
