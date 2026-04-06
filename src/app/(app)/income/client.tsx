@@ -39,8 +39,14 @@ export function IncomeClient({ items }: { items: Income[] }) {
   const [editing, setEditing] = useState<Income | null>(null);
   const [form, setForm] = useState({ name: "", amount: "", frequency: "monthly", taxRate: "22", inputType: "gross" as "gross" | "net" });
 
-  const totalMonthlyGross = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency), 0);
-  const totalMonthlyNet = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency) * (1 - i.taxRate / 100), 0);
+  const totalMonthlyGross = items.reduce((sum, i) => {
+    const monthly = toMonthly(i.amount, i.frequency);
+    return sum + (i.isNetInput && i.taxRate > 0 ? monthly / (1 - i.taxRate / 100) : monthly);
+  }, 0);
+  const totalMonthlyNet = items.reduce((sum, i) => {
+    const monthly = toMonthly(i.amount, i.frequency);
+    return sum + (i.isNetInput ? monthly : monthly * (1 - i.taxRate / 100));
+  }, 0);
 
   function openNew() {
     setEditing(null);
@@ -185,7 +191,7 @@ export function IncomeClient({ items }: { items: Income[] }) {
                     <TableCell><Badge variant="secondary">{item.frequency}</Badge></TableCell>
                     <TableCell>{item.taxRate}%</TableCell>
                     <TableCell className="text-green-600">
-                      {formatCurrency(toMonthly(item.amount, item.frequency) * (1 - item.taxRate / 100))}
+                      {formatCurrency(item.isNetInput ? toMonthly(item.amount, item.frequency) : toMonthly(item.amount, item.frequency) * (1 - item.taxRate / 100))}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
