@@ -1,0 +1,5 @@
+electron/
+dist/
+*.db
+*.db-*
+prisma/dev.db*

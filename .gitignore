@@ -53,3 +53,7 @@ next-env.d.ts
 .claude/
 .env*.local
 *.png
+# ...but PWA icons must ship with the repo so Vercel can serve them
+!public/icon-192.png
+!public/icon-512.png
+!public/apple-touch-icon.png

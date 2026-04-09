@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PwaRegister } from "@/components/pwa-register";
 
 const geistSans = localFont({
   src: "../../public/fonts/GeistVF.woff2",
@@ -15,7 +16,25 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "CapitalOS",
-  description: "Model major life choices and see exact effects on your finances",
+  description:
+    "Model major life choices and see exact effects on your finances",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "CapitalOS",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -58,6 +77,7 @@ export default function RootLayout({
             pointerEvents: "none",
           }}
         />
+        <PwaRegister />
         <TooltipProvider>
           {children}
         </TooltipProvider>

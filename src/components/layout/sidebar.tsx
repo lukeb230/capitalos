@@ -56,9 +56,11 @@ export function Sidebar({ profileName, avatarColor }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile hamburger */}
+      {/* Mobile hamburger — respects iOS safe-area so it isn't hidden under
+          the status bar in standalone PWA mode. */}
       <button
-        className="fixed top-4 left-4 z-50 md:hidden rounded-md bg-card p-2 shadow-md border"
+        className="fixed left-4 z-50 lg:hidden rounded-md bg-card p-2 shadow-md border"
+        style={{ top: "max(1rem, env(safe-area-inset-top))" }}
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -67,7 +69,7 @@ export function Sidebar({ profileName, avatarColor }: SidebarProps) {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -76,12 +78,15 @@ export function Sidebar({ profileName, avatarColor }: SidebarProps) {
       <aside
         className={cn(
           "fixed left-0 top-0 z-40 h-screen w-64 bg-card border-r flex flex-col transition-transform duration-200",
-          "md:translate-x-0",
+          "lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Spacer for macOS traffic lights */}
-        <div className="h-10 flex-shrink-0" />
+        {/* Spacer for macOS Electron traffic lights AND iOS safe-area inset */}
+        <div
+          className="flex-shrink-0"
+          style={{ height: "max(2.5rem, env(safe-area-inset-top))" }}
+        />
 
         {/* Profile section */}
         <div className="p-4 border-b">

@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profileId = await getActiveProfileId();
-  const [incomes, expenses, debts, assets, goals, profile, checkins] = await Promise.all([
+  const [incomes, expenses, debts, assets, goals, profile, checkins, plaidItemCount] = await Promise.all([
     prisma.income.findMany({ where: { profileId } }),
     prisma.expense.findMany({ where: { profileId } }),
     prisma.debt.findMany({ where: { profileId } }),
@@ -35,6 +35,7 @@ export default async function DashboardPage() {
       orderBy: [{ year: "asc" }, { month: "asc" }],
       select: { month: true, year: true, netWorth: true },
     }),
+    prisma.plaidItem.count({ where: { profileId, isActive: true } }),
   ]);
 
   const incomeInputs = incomes.map((i) => ({
@@ -209,6 +210,7 @@ export default async function DashboardPage() {
       monthlyGrossIncome={monthlyGrossIncome}
       filingStatus={profile?.filingStatus || null}
       taxState={profile?.state || null}
+      hasPlaid={plaidItemCount > 0}
     />
   );
 }

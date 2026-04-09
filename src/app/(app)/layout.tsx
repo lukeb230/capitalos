@@ -11,8 +11,13 @@ export default async function AppLayout({
   return (
     <>
       <Sidebar profileName={profile.name} avatarColor={profile.avatarColor} />
-      <main className="md:ml-64 min-h-screen">
-        <div className="p-6 md:p-8 max-w-7xl mx-auto">{children}</div>
+      <main className="lg:ml-64 min-h-screen">
+        <div
+          className="p-6 md:p-8 max-w-7xl mx-auto"
+          style={{ paddingTop: "max(1.5rem, calc(env(safe-area-inset-top) + 3.5rem))" }}
+        >
+          {children}
+        </div>
       </main>
     </>
   );

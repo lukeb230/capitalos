@@ -30,17 +30,9 @@ function ensureUserData() {
 
   const unpackedRoot = path.join(process.resourcesPath, "app.asar.unpacked");
 
-  // Migrate database: copy seed DB on first launch only
-  const userDb = getUserDataPath("dev.db");
-  if (!fs.existsSync(userDb)) {
-    const seedDb = path.join(unpackedRoot, "prisma", "dev.db");
-    if (fs.existsSync(seedDb)) {
-      fs.copyFileSync(seedDb, userDb);
-      console.log("Database seeded to userData:", userDb);
-    }
-  }
-
-  // Migrate .env: copy on first launch only
+  // Seed .env on first launch only — user supplies their own DATABASE_URL
+  // pointing at the shared Neon Postgres. The installed .env file at userData
+  // persists across app updates.
   const userEnv = getUserDataPath(".env");
   if (!fs.existsSync(userEnv)) {
     const seedEnv = path.join(unpackedRoot, ".env");
@@ -65,9 +57,8 @@ function loadEnvFromUserData() {
           const key = trimmed.substring(0, eqIdx).trim();
           let val = trimmed.substring(eqIdx + 1).trim();
           if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-          if (key !== "DATABASE_URL") {
-            process.env[key] = val;
-          }
+          // Load everything including DATABASE_URL (points at shared Neon)
+          process.env[key] = val;
         }
       }
     }
@@ -137,63 +128,21 @@ async function startNextServer() {
   process.env.NODE_PATH = path.join(appRoot, "node_modules");
   require("module").Module._initPaths();
 
-  // Migrate user data on first launch, then load from userData
+  // Ensure userData dir exists and seed .env on first launch
   ensureUserData();
 
-  // Set DATABASE_URL to userData (survives app updates)
-  process.env.DATABASE_URL = `file:${getUserDataPath("dev.db")}`;
-
-  // Load .env from userData
+  // Load DATABASE_URL, PLAID_*, etc. from userData .env (points at Neon)
   loadEnvFromUserData();
 
-  // Auto-migrate: add any missing columns to the user's existing database
-  try {
-    const { PrismaClient } = require("@prisma/client");
-    const migratePrisma = new PrismaClient();
-    const migrations = [
-      // v1.0.9: Add collateral tracking to debts
-      'ALTER TABLE Debt ADD COLUMN collateralValue REAL',
-      'ALTER TABLE Debt ADD COLUMN appreciationRate REAL',
-      // v1.0.8: Add profile age fields
-      'ALTER TABLE Profile ADD COLUMN currentAge INTEGER',
-      'ALTER TABLE Profile ADD COLUMN retirementAge INTEGER DEFAULT 60',
-      // v1.0.24: Add tax settings to profile
-      'ALTER TABLE Profile ADD COLUMN filingStatus TEXT',
-      'ALTER TABLE Profile ADD COLUMN state TEXT',
-      // v1.0.29: Add isNetInput to income
-      'ALTER TABLE Income ADD COLUMN isNetInput BOOLEAN DEFAULT 0',
-    ];
-    for (const sql of migrations) {
-      try {
-        await migratePrisma.$executeRawUnsafe(sql);
-        console.log("Migration applied:", sql.substring(0, 60));
-      } catch (e) {
-        if (e.message && !e.message.includes("duplicate column")) {
-          console.warn("Migration warning:", e.message);
-        }
-      }
-    }
-    await migratePrisma.$disconnect();
-  } catch (e) {
-    console.error("Auto-migration failed:", e.message);
-  }
+  // Mark this process as the desktop client — the Next.js middleware uses
+  // this to bypass the password gate that protects the public PWA.
+  process.env.DESKTOP_CLIENT = "1";
 
-  // Cleanup transactions older than 90 days
-  try {
-    const { PrismaClient } = require("@prisma/client");
-    const cleanupPrisma = new PrismaClient();
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 90);
-    const result = await cleanupPrisma.transaction.deleteMany({
-      where: { date: { lt: cutoff } },
-    });
-    if (result.count > 0) {
-      console.log(`Cleaned up ${result.count} transactions older than 90 days`);
-    }
-    await cleanupPrisma.$disconnect();
-  } catch (e) {
-    console.error("Transaction cleanup failed:", e.message);
-  }
+  // Note: schema migrations are owned by Vercel CI (`prisma migrate deploy`).
+  // The desktop app assumes the shared Neon DB is already up-to-date.
+  //
+  // Note: 90-day transaction cleanup runs as a Vercel Cron Job instead of
+  // locally — prevents two clients racing the same DELETE.
 
   // Start Next.js
   const next = require("next");

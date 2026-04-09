@@ -14,6 +14,7 @@ import { AssetDonut } from "@/components/charts/asset-donut";
 import { NetWorthHistoryChart } from "@/components/charts/net-worth-history";
 import { calculateTotalTax, type FilingStatus } from "@/lib/engine/tax";
 import { generateCSV } from "@/lib/export/csv-export";
+import { PlaidRefreshButton } from "@/components/plaid-refresh-button";
 import { formatCurrency, formatMonths } from "@/lib/utils";
 import {
   DollarSign,
@@ -79,6 +80,7 @@ interface Props {
   monthlyGrossIncome: number;
   filingStatus: string | null;
   taxState: string | null;
+  hasPlaid: boolean;
 }
 
 function StatCard({
@@ -102,6 +104,7 @@ function StatCard({
 
 type DashboardSection =
   | "projection" | "waterfall" | "dti" | "debtPayoff" | "goals" | "milestones" | "aiInsights"
+  | "netWorthHistory" | "taxEstimate"
   | "incomeVsExpenses" | "expenseDonut" | "fixedVsVariable" | "assetAllocation"
   | "netWorthBreakdown" | "debtInterestCost" | "goalCountdown" | "debtFreeCountdown";
 
@@ -113,6 +116,8 @@ const sectionLabels: Record<DashboardSection, string> = {
   goals: "Goal Progress",
   milestones: "Milestones",
   aiInsights: "AI Insights",
+  netWorthHistory: "Net Worth History",
+  taxEstimate: "Annual Tax Estimate",
   incomeVsExpenses: "Income vs Expenses",
   expenseDonut: "Expense Donut",
   fixedVsVariable: "Fixed vs Variable Expenses",
@@ -123,7 +128,10 @@ const sectionLabels: Record<DashboardSection, string> = {
   debtFreeCountdown: "Debt-Free Countdown",
 };
 
-const defaultSections: DashboardSection[] = ["projection", "waterfall", "dti", "debtPayoff", "goals", "milestones", "aiInsights"];
+const defaultSections: DashboardSection[] = [
+  "projection", "waterfall", "dti", "debtPayoff", "goals", "milestones", "aiInsights",
+  "netWorthHistory", "taxEstimate",
+];
 
 const optionalSections: DashboardSection[] = [
   "incomeVsExpenses", "expenseDonut", "fixedVsVariable", "assetAllocation",
@@ -138,11 +146,14 @@ function loadDashboardConfig(): { sections: DashboardSection[]; hidden: Dashboar
     const saved = localStorage.getItem("dashboard-config");
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Merge any new sections not present in saved config (hidden by default)
+      // Merge any new sections not present in saved config. Newly-added
+      // default sections appear visible; newly-added optional sections are
+      // hidden by default.
       const missing = allSections.filter((s) => !parsed.sections.includes(s));
       if (missing.length > 0) {
         parsed.sections = [...parsed.sections, ...missing];
-        parsed.hidden = [...(parsed.hidden || []), ...missing];
+        const newlyHidden = missing.filter((s) => optionalSections.includes(s));
+        parsed.hidden = [...(parsed.hidden || []), ...newlyHidden];
       }
       return parsed;
     }
@@ -159,7 +170,7 @@ export function DashboardClient({
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debts, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, spendingCategories,
   fixedExpenses, variableExpenses, assetAllocation, assetBreakdown,
-  netWorthHistory, monthlyGrossIncome, filingStatus, taxState,
+  netWorthHistory, monthlyGrossIncome, filingStatus, taxState, hasPlaid,
 }: Props) {
   const [projectionRange, setProjectionRange] = useState<"1yr" | "5yr">("5yr");
   const [customizing, setCustomizing] = useState(false);
@@ -351,6 +362,48 @@ export function DashboardClient({
           </Card>
         );
 
+      case "netWorthHistory":
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Net Worth History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NetWorthHistoryChart data={netWorthHistory} />
+            </CardContent>
+          </Card>
+        );
+
+      case "taxEstimate": {
+        const grossAnnual = monthlyGrossIncome * 12;
+        const tax = calculateTotalTax(grossAnnual, (filingStatus as FilingStatus) || "single", taxState);
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Annual Tax Estimate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div><p className="text-xs text-muted-foreground">Gross Income</p><p className="text-lg font-bold">{formatCurrency(grossAnnual)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Take-Home</p><p className="text-lg font-bold text-emerald-600">{formatCurrency(tax.takeHome)}</p></div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">Federal</p><p className="text-sm font-medium">{formatCurrency(tax.federal.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.federal.effectiveRate}% eff.</p></div>
+                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">State ({tax.state.stateName})</p><p className="text-sm font-medium">{formatCurrency(tax.state.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.state.rate}%</p></div>
+                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">FICA</p><p className="text-sm font-medium">{formatCurrency(tax.fica)}</p><p className="text-[10px] text-muted-foreground">SS + Medicare</p></div>
+                </div>
+                <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                  <span className="text-xs text-muted-foreground">Total Tax / Effective Rate</span>
+                  <span className="text-sm font-bold">{formatCurrency(tax.totalTax)} ({tax.totalEffectiveRate}%)</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Based on {filingStatus ? filingStatus.replace(/_/g, " ") : "single"} filing. Set your filing status and state in Settings.</p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+
       case "incomeVsExpenses": {
         const totalOutflow = monthlyExpenses + monthlyDebtPayments + totalContributions;
         const maxBar = Math.max(monthlyIncome, totalOutflow, 1);
@@ -518,6 +571,7 @@ export function DashboardClient({
           <p className="text-muted-foreground text-sm mt-1">Your financial command center</p>
         </div>
         <div className="flex gap-2">
+          {hasPlaid && <PlaidRefreshButton />}
           <Button variant="outline" size="sm" onClick={async () => {
             try {
               const res = await fetch("/api/export");
@@ -612,56 +666,20 @@ export function DashboardClient({
         <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "6+ mo expenses covered" : emergencyMonths >= 3 ? "3-6 mo expenses covered" : "Under 3 mo expenses"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />
       </div>
 
-      {/* Net Worth History + Tax Estimate */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Net Worth History */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Net Worth History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <NetWorthHistoryChart data={netWorthHistory} />
-          </CardContent>
-        </Card>
-
-        {/* Tax Estimate */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Annual Tax Estimate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const grossAnnual = monthlyGrossIncome * 12;
-              const tax = calculateTotalTax(grossAnnual, (filingStatus as FilingStatus) || "single", taxState);
-              return (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><p className="text-xs text-muted-foreground">Gross Income</p><p className="text-lg font-bold">{formatCurrency(grossAnnual)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Take-Home</p><p className="text-lg font-bold text-emerald-600">{formatCurrency(tax.takeHome)}</p></div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">Federal</p><p className="text-sm font-medium">{formatCurrency(tax.federal.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.federal.effectiveRate}% eff.</p></div>
-                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">State ({tax.state.stateName})</p><p className="text-sm font-medium">{formatCurrency(tax.state.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.state.rate}%</p></div>
-                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">FICA</p><p className="text-sm font-medium">{formatCurrency(tax.fica)}</p><p className="text-[10px] text-muted-foreground">SS + Medicare</p></div>
-                  </div>
-                  <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
-                    <span className="text-xs text-muted-foreground">Total Tax / Effective Rate</span>
-                    <span className="text-sm font-bold">{formatCurrency(tax.totalTax)} ({tax.totalEffectiveRate}%)</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">Based on {filingStatus ? filingStatus.replace(/_/g, " ") : "single"} filing. Set your filing status and state in Settings.</p>
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Net Worth History + Tax Estimate — both toggleable via Customize */}
+      {(visibleSections.includes("netWorthHistory") || visibleSections.includes("taxEstimate")) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {visibleSections.includes("netWorthHistory") && renderSection("netWorthHistory")}
+          {visibleSections.includes("taxEstimate") && renderSection("taxEstimate")}
+        </div>
+      )}
 
       {/* 2-Column Layout: Charts + Sidebar */}
       <div className="grid gap-6 lg:grid-cols-[1fr_300px] items-start">
         {/* MAIN: Sections */}
         <div className="space-y-6">
           {visibleSections
-            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown"].includes(s))
+            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown", "netWorthHistory", "taxEstimate"].includes(s))
             .map((section) => renderSection(section))}
         </div>
 
