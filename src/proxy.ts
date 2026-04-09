@@ -42,7 +42,8 @@ export const config = {
   matcher: [
     // Run on all paths except Next.js internals, static assets, and the PWA
     // service worker / manifest which must be reachable unauthenticated so
-    // the install flow works before login.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon.svg|icon.png|apple-touch-icon.png).*)",
+    // iOS can fetch them during the "Add to Home Screen" install flow
+    // before any login has happened.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.png$|.*\\.svg$).*)",
   ],
 };
