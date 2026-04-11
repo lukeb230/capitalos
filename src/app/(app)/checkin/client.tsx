@@ -260,9 +260,13 @@ export default function CheckinWizard({ budget, currentNetWorth, pastCheckins }:
     try {
       const res = await fetch("/api/plaid/create-link-token", { method: "POST" });
       const data = await res.json();
-      if (data.linkToken) setPlaidLinkToken(data.linkToken);
+      if (!res.ok || !data.linkToken) {
+        alert(data.error || "Failed to create Plaid link token. Check your Plaid API keys in Settings.");
+        return;
+      }
+      setPlaidLinkToken(data.linkToken);
     } catch {
-      alert("Failed to initialize bank connection. Check your Plaid API keys.");
+      alert("Failed to initialize bank connection. Check your network and Plaid API keys.");
     }
   }
 
