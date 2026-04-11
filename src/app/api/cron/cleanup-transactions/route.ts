@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   cutoff.setDate(cutoff.getDate() - 90);
 
   const result = await prisma.transaction.deleteMany({
-    where: { date: { lt: cutoff } },
+    where: { date: { lt: cutoff }, checkinId: null },
   });
 
   return NextResponse.json({

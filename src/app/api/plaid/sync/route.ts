@@ -26,6 +26,7 @@ export async function POST(req: Request) {
     let totalAdded = 0;
     let totalModified = 0;
     let totalRemoved = 0;
+    let totalFailed = 0;
 
     for (const item of items) {
       let cursor = item.syncCursor || undefined;
@@ -71,6 +72,7 @@ export async function POST(req: Request) {
             totalAdded++;
           } catch (err) {
             console.error(`Failed to insert transaction ${txn.transaction_id}:`, err);
+            totalFailed++;
           }
         }
 
@@ -92,6 +94,7 @@ export async function POST(req: Request) {
             totalModified++;
           } catch (err) {
             console.error(`Failed to update transaction ${txn.transaction_id}:`, err);
+            totalFailed++;
           }
         }
 
@@ -103,6 +106,7 @@ export async function POST(req: Request) {
             totalRemoved++;
           } catch (err) {
             console.error(`Failed to remove transaction ${txn.transaction_id}:`, err);
+            totalFailed++;
           }
         }
 
@@ -120,10 +124,11 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({
-      success: true,
+      success: totalFailed === 0,
       added: totalAdded,
       modified: totalModified,
       removed: totalRemoved,
+      failed: totalFailed,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Sync failed";

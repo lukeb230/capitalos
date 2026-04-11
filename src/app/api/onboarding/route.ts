@@ -36,17 +36,27 @@ export async function POST(req: Request) {
         }
       }
       if (Array.isArray(budgetCategories)) {
+        // Aggregate by category first — multiple items with the same (or missing)
+        // category get summed instead of overwriting each other.
+        const categoryMap = new Map<string, { monthlyAmount: number; isFixed: boolean }>();
         for (const item of budgetCategories) {
+          const cat = (item.category || "other").toLowerCase();
+          const amt = item.monthlyAmount || item.amount || 0;
+          const existing = categoryMap.get(cat);
+          categoryMap.set(cat, {
+            monthlyAmount: (existing?.monthlyAmount ?? 0) + amt,
+            isFixed: existing?.isFixed ?? (item.isFixed ?? true),
+          });
+        }
+        for (const [cat, data] of categoryMap) {
           await tx.budgetCategory.upsert({
-            where: {
-              profileId_category: { profileId, category: item.category || "other" },
-            },
-            update: { monthlyAmount: item.monthlyAmount || item.amount || 0 },
+            where: { profileId_category: { profileId, category: cat } },
+            update: { monthlyAmount: data.monthlyAmount },
             create: {
               profileId,
-              category: item.category || "other",
-              monthlyAmount: item.monthlyAmount || item.amount || 0,
-              isFixed: item.isFixed ?? true,
+              category: cat,
+              monthlyAmount: data.monthlyAmount,
+              isFixed: data.isFixed,
             },
           });
         }

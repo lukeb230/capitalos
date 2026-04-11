@@ -24,9 +24,14 @@ export async function POST(req: Request) {
       });
 
       for (const account of response.data.accounts) {
-        // Update PlaidAccount balances
-        const plaidAccount = await prisma.plaidAccount.update({
-          where: { accountId: account.account_id },
+        // Update PlaidAccount balances — verify ownership via plaidItemId
+        const plaidAccount = await prisma.plaidAccount.findFirst({
+          where: { accountId: account.account_id, plaidItemId: item.id },
+        });
+        if (!plaidAccount) continue;
+
+        await prisma.plaidAccount.update({
+          where: { id: plaidAccount.id },
           data: {
             balanceCurrent: account.balances.current,
             balanceAvailable: account.balances.available,

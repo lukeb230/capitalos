@@ -160,36 +160,39 @@ export async function computeAndStoreRollover(
   const prevActual = await getActualSpending(profileId, prevMonth, prevYear);
   let totalRollover = 0;
 
-  for (const cat of categories) {
-    const override = cat.overrides.find(o => o.month === prevMonth && o.year === prevYear) ?? null;
-    const eff = getEffectiveBudget(
-      cat.monthlyAmount,
-      cat.rolloverEnabled,
-      override,
-    );
-    const actual = prevActual[cat.category] ?? 0;
-    const surplus = Math.max(0, eff.amount - actual);
-    if (surplus <= 0) continue;
+  // Atomic: all rollover writes for the month succeed or fail together
+  await prisma.$transaction(async (tx) => {
+    for (const cat of categories) {
+      const override = cat.overrides.find(o => o.month === prevMonth && o.year === prevYear) ?? null;
+      const eff = getEffectiveBudget(
+        cat.monthlyAmount,
+        cat.rolloverEnabled,
+        override,
+      );
+      const actual = prevActual[cat.category] ?? 0;
+      const surplus = Math.max(0, eff.amount - actual);
+      if (surplus <= 0) continue;
 
-    totalRollover += surplus;
+      totalRollover += surplus;
 
-    await prisma.budgetOverride.upsert({
-      where: {
-        budgetCategoryId_month_year: {
+      await tx.budgetOverride.upsert({
+        where: {
+          budgetCategoryId_month_year: {
+            budgetCategoryId: cat.id,
+            month: targetMonth,
+            year: targetYear,
+          },
+        },
+        update: { rolloverIn: surplus },
+        create: {
           budgetCategoryId: cat.id,
           month: targetMonth,
           year: targetYear,
+          rolloverIn: surplus,
         },
-      },
-      update: { rolloverIn: surplus },
-      create: {
-        budgetCategoryId: cat.id,
-        month: targetMonth,
-        year: targetYear,
-        rolloverIn: surplus,
-      },
-    });
-  }
+      });
+    }
+  });
 
   return totalRollover;
 }

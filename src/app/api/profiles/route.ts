@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getActiveProfileIdFromRequest } from "@/lib/profile";
 
 export async function GET() {
   const profiles = await prisma.profile.findMany({ orderBy: { createdAt: "asc" } });
@@ -36,6 +37,13 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  try {
+    // Auth gate — ensures the request has a valid session (proxy cookie or desktop client)
+    await getActiveProfileIdFromRequest(req);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });

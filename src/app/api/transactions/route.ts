@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
-import { getActualSpending } from "@/lib/budget/helpers";
+import { getActualSpending, CATEGORY_KEYS } from "@/lib/budget/helpers";
 
 // GET — fetch recent transactions (last 90 days by default)
 // Supports ?summary=true&month=N&year=N for budget page month navigation
@@ -83,6 +83,9 @@ export async function PUT(req: Request) {
     if (!transactionId || !category) {
       return NextResponse.json({ error: "transactionId and category are required" }, { status: 400 });
     }
+    if (!CATEGORY_KEYS.includes(category)) {
+      return NextResponse.json({ error: `Invalid category. Must be one of: ${CATEGORY_KEYS.join(", ")}` }, { status: 400 });
+    }
 
     // Verify ownership: transaction must belong to a check-in owned by this profile
     // or be an unattached Plaid transaction for this profile
@@ -103,32 +106,30 @@ export async function PUT(req: Request) {
 
     const oldCategory = transaction.category;
 
-    // Update the transaction
-    await prisma.transaction.update({
-      where: { id: transactionId },
-      data: { category },
-    });
+    // Atomic: update category + checkin aggregate together
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.update({
+        where: { id: transactionId },
+        data: { category },
+      });
 
-    // If attached to a check-in, update the aggregated expensesByCategory
-    if (transaction.checkinId && transaction.checkin && !transaction.isIncome && !transaction.excluded) {
-      try {
-        const existing = JSON.parse(transaction.checkin.expensesByCategory || "{}");
-        // Subtract from old category
-        if (existing[oldCategory]) {
-          existing[oldCategory] = Math.max(0, existing[oldCategory] - transaction.amount);
-          if (existing[oldCategory] === 0) delete existing[oldCategory];
+      // If attached to a check-in, update the aggregated expensesByCategory
+      if (transaction.checkinId && transaction.checkin && !transaction.isIncome && !transaction.excluded) {
+        const checkin = await tx.monthlyCheckin.findUnique({ where: { id: transaction.checkinId } });
+        if (checkin) {
+          const existing = JSON.parse(checkin.expensesByCategory || "{}");
+          if (existing[oldCategory]) {
+            existing[oldCategory] = Math.max(0, existing[oldCategory] - transaction.amount);
+            if (existing[oldCategory] === 0) delete existing[oldCategory];
+          }
+          existing[category] = (existing[category] || 0) + transaction.amount;
+          await tx.monthlyCheckin.update({
+            where: { id: transaction.checkinId },
+            data: { expensesByCategory: JSON.stringify(existing) },
+          });
         }
-        // Add to new category
-        existing[category] = (existing[category] || 0) + transaction.amount;
-
-        await prisma.monthlyCheckin.update({
-          where: { id: transaction.checkinId },
-          data: { expensesByCategory: JSON.stringify(existing) },
-        });
-      } catch {
-        // Aggregate update failed — transaction category still updated
       }
-    }
+    });
 
     return NextResponse.json({ success: true });
   } catch (e) {

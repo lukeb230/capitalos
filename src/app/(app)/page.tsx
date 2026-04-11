@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActiveProfileId } from "@/lib/profile";
-import { budgetToExpenseInputs, getActualSpending } from "@/lib/budget/helpers";
+import { budgetToExpenseInputs, getActualSpending, getEffectiveBudget } from "@/lib/budget/helpers";
 import {
   calculateMonthlyCashFlow,
   calculateMonthlyNetIncome,
@@ -60,11 +60,22 @@ export default async function DashboardPage() {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
   const actualSpending = await getActualSpending(profileId, currentMonth, currentYear);
-  const budgetStatusRows = budgetCategories.map((c) => ({
-    category: c.category,
-    budgeted: c.monthlyAmount,
-    spent: actualSpending[c.category] ?? 0,
-  }));
+
+  // Fetch overrides for current month to match the budget page's calculation
+  const currentOverrides = await prisma.budgetOverride.findMany({
+    where: { budgetCategory: { profileId }, month: currentMonth, year: currentYear },
+  });
+  const overrideMap = new Map(currentOverrides.map((o) => [o.budgetCategoryId, o]));
+
+  const budgetStatusRows = budgetCategories.map((c) => {
+    const override = overrideMap.get(c.id) ?? null;
+    const eff = getEffectiveBudget(c.monthlyAmount, c.rolloverEnabled, override);
+    return {
+      category: c.category,
+      budgeted: eff.amount,
+      spent: actualSpending[c.category] ?? 0,
+    };
+  });
 
   const monthlyGrossIncome = calculateMonthlyGrossIncome(incomeInputs);
   const monthlyIncome = calculateMonthlyNetIncome(incomeInputs);
