@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -115,6 +115,10 @@ export function BudgetClient({
     useState<Record<string, number>>(initialActual);
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
+
+  // Sync local state when server re-renders new props (after router.refresh())
+  useEffect(() => { setCategories(initialCategories); }, [initialCategories]);
+  useEffect(() => { setActual(initialActual); }, [initialActual]);
 
   // Navigation loading
   const [navLoading, setNavLoading] = useState(false);
@@ -232,8 +236,8 @@ export function BudgetClient({
     setForm({
       category: unbudgetedCategories[0]?.key ?? "",
       monthlyAmount: "",
-      isFixed: "true",
-      rolloverEnabled: "false",
+      isFixed: "Fixed",
+      rolloverEnabled: "Off",
     });
     setAddOpen(true);
   }
