@@ -379,6 +379,8 @@ export function DashboardClient({
 
       case "taxEstimate": {
         const grossAnnual = monthlyGrossIncome * 12;
+        const netAnnual = monthlyIncome * 12;
+        const userSetZeroTax = grossAnnual > 0 && Math.abs(grossAnnual - netAnnual) < 1;
         const tax = calculateTotalTax(grossAnnual, (filingStatus as FilingStatus) || "single", taxState);
         return (
           <Card key={section}>
@@ -386,22 +388,36 @@ export function DashboardClient({
               <CardTitle className="text-sm">Annual Tax Estimate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div><p className="text-xs text-muted-foreground">Gross Income</p><p className="text-lg font-bold">{formatCurrency(grossAnnual)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Take-Home</p><p className="text-lg font-bold text-emerald-600">{formatCurrency(tax.takeHome)}</p></div>
+              {userSetZeroTax ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><p className="text-xs text-muted-foreground">Gross Income</p><p className="text-lg font-bold">{formatCurrency(grossAnnual)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Take-Home</p><p className="text-lg font-bold text-emerald-600">{formatCurrency(grossAnnual)}</p></div>
+                  </div>
+                  <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                    <span className="text-xs text-muted-foreground">Total Tax</span>
+                    <span className="text-sm font-bold">{formatCurrency(0)} (0%)</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Tax rate is set to 0% on all income. Set a tax rate on the Income page for a bracket-based estimate.</p>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">Federal</p><p className="text-sm font-medium">{formatCurrency(tax.federal.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.federal.effectiveRate}% eff.</p></div>
-                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">State ({tax.state.stateName})</p><p className="text-sm font-medium">{formatCurrency(tax.state.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.state.rate}%</p></div>
-                  <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">FICA</p><p className="text-sm font-medium">{formatCurrency(tax.fica)}</p><p className="text-[10px] text-muted-foreground">SS + Medicare</p></div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><p className="text-xs text-muted-foreground">Gross Income</p><p className="text-lg font-bold">{formatCurrency(grossAnnual)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Take-Home</p><p className="text-lg font-bold text-emerald-600">{formatCurrency(tax.takeHome)}</p></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">Federal</p><p className="text-sm font-medium">{formatCurrency(tax.federal.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.federal.effectiveRate}% eff.</p></div>
+                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">State ({tax.state.stateName})</p><p className="text-sm font-medium">{formatCurrency(tax.state.tax)}</p><p className="text-[10px] text-muted-foreground">{tax.state.rate}%</p></div>
+                    <div className="bg-muted/50 rounded-lg p-2"><p className="text-[10px] text-muted-foreground">FICA</p><p className="text-sm font-medium">{formatCurrency(tax.fica)}</p><p className="text-[10px] text-muted-foreground">SS + Medicare</p></div>
+                  </div>
+                  <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                    <span className="text-xs text-muted-foreground">Total Tax / Effective Rate</span>
+                    <span className="text-sm font-bold">{formatCurrency(tax.totalTax)} ({tax.totalEffectiveRate}%)</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Based on {filingStatus ? filingStatus.replace(/_/g, " ") : "single"} filing. Set your filing status and state in Settings.</p>
                 </div>
-                <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
-                  <span className="text-xs text-muted-foreground">Total Tax / Effective Rate</span>
-                  <span className="text-sm font-bold">{formatCurrency(tax.totalTax)} ({tax.totalEffectiveRate}%)</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground">Based on {filingStatus ? filingStatus.replace(/_/g, " ") : "single"} filing. Set your filing status and state in Settings.</p>
-              </div>
+              )}
             </CardContent>
           </Card>
         );
