@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getActiveProfileIdFromRequest } from "@/lib/profile";
 
 const CATEGORIES = [
   "housing", "transport", "food", "utilities", "subscriptions",
@@ -7,6 +8,9 @@ const CATEGORIES = [
 ];
 
 export async function POST(req: Request) {
+  try { await getActiveProfileIdFromRequest(req); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   let body;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });

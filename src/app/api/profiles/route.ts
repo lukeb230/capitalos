@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
 
 export async function GET() {
-  const profiles = await prisma.profile.findMany({ orderBy: { createdAt: "asc" } });
+  // Public (proxy-gated) — profile picker needs this before a profile is
+  // selected. Only return safe display fields, not filingStatus/state.
+  const profiles = await prisma.profile.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, avatarColor: true, createdAt: true },
+  });
   return NextResponse.json(profiles);
 }
 

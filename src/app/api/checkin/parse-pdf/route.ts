@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getActiveProfileIdFromRequest } from "@/lib/profile";
 
 // Extract text from PDF using pdf.js server-side
 async function extractTextFromPDF(base64Data: string): Promise<string> {
@@ -35,6 +36,9 @@ async function extractTextFromPDF(base64Data: string): Promise<string> {
 }
 
 export async function POST(req: Request) {
+  try { await getActiveProfileIdFromRequest(req); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   let body;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });

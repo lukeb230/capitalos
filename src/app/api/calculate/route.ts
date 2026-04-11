@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { getActiveProfileIdFromRequest } from "@/lib/profile";
 import { projectMonthly } from "@/lib/engine/projections";
 import { calculateMonthlyCashFlow, calculateNetWorth, calculateDebtPayoff, calculateEmergencyFundMonths } from "@/lib/engine/calculator";
 import { compareScenarios } from "@/lib/engine/scenarios";
 import type { FinancialState, ScenarioChangeInput } from "@/lib/engine/types";
 
 export async function POST(req: Request) {
+  try { await getActiveProfileIdFromRequest(req); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   let body;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
