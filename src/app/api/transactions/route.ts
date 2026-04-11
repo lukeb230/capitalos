@@ -1,12 +1,25 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
+import { getActualSpending } from "@/lib/budget/helpers";
 
 // GET — fetch recent transactions (last 90 days by default)
+// Supports ?summary=true&month=N&year=N for budget page month navigation
 export async function GET(req: Request) {
   try {
     const profileId = await getActiveProfileIdFromRequest(req);
     const { searchParams } = new URL(req.url);
+
+    // Budget summary mode: return spending grouped by category for a month
+    const summaryMode = searchParams.get("summary") === "true";
+    const monthParam = parseInt(searchParams.get("month") || "");
+    const yearParam = parseInt(searchParams.get("year") || "");
+
+    if (summaryMode && Number.isInteger(monthParam) && monthParam >= 1 && monthParam <= 12 && Number.isInteger(yearParam) && yearParam >= 1900) {
+      const byCategory = await getActualSpending(profileId, monthParam, yearParam);
+      return NextResponse.json({ byCategory });
+    }
+
     const days = parseInt(searchParams.get("days") || "90");
 
     const cutoff = new Date();

@@ -122,7 +122,7 @@ PROPOSED ACTIONS:
 When the user asks you to make changes (e.g. "add a $200 expense", "increase my 401k contribution", "set a new goal"), include a "proposedActions" array. Each action is an object:
 
 For CREATING new records:
-{ "operation": "create", "entityType": "expense", "data": { "name": "Netflix", "amount": 15, "frequency": "monthly", "category": "subscriptions", "isFixed": true } }
+{ "operation": "create", "entityType": "budgetCategory", "data": { "category": "subscriptions", "monthlyAmount": 15, "isFixed": true } }
 { "operation": "create", "entityType": "income", "data": { "name": "Side gig", "amount": 500, "frequency": "monthly", "taxRate": 25 } }
 { "operation": "create", "entityType": "debt", "data": { "name": "Car Loan", "balance": 25000, "interestRate": 5.9, "minimumPayment": 450, "type": "auto" } }
 { "operation": "create", "entityType": "asset", "data": { "name": "Roth IRA", "value": 5000, "type": "investment", "growthRate": 8, "monthlyContribution": 500 } }
@@ -133,13 +133,13 @@ For UPDATING existing records (use the entity ID from the data above):
 { "operation": "update", "entityType": "asset", "id": "the-id", "data": { "monthlyContribution": 750 }, "description": "Increase 401(k) contribution to $750/mo" }
 
 For DELETING records:
-{ "operation": "delete", "entityType": "expense", "id": "the-id", "description": "Remove Netflix subscription" }
+{ "operation": "delete", "entityType": "budgetCategory", "id": "the-id", "description": "Remove subscriptions budget" }
 
 For CREATING SCENARIOS (natural language scenario creation):
 When the user describes a life change like "What if I move to Austin and take a $90K job?" or "Create a scenario where I buy a $30K car", create a scenario with multiple changes:
 { "operation": "create", "entityType": "scenario", "data": { "name": "Move to Austin", "description": "Take $90K job, lower rent to $1,200", "changes": [
   { "entityType": "income", "entityId": "the-salary-id", "field": "amount", "oldValue": "3269.23", "newValue": "3461.54" },
-  { "entityType": "expense", "entityId": "the-rent-id", "field": "amount", "oldValue": "1800", "newValue": "1200" }
+  { "entityType": "expense", "entityId": "the-housing-budget-id", "field": "amount", "oldValue": "1800", "newValue": "1200" }
 ] } }
 
 Use real entity IDs from the data above. Calculate reasonable new values (e.g. $90K/yr biweekly = $3461.54). The scenario will appear in the Scenarios page for comparison.

@@ -35,7 +35,7 @@ import { formatCurrency } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 interface TemplateChange {
-  type: "create_expense" | "create_debt" | "create_asset" | "create_income";
+  type: "create_budget" | "create_debt" | "create_asset" | "create_income";
   label: string;
   data: Record<string, string | number | boolean>;
 }
@@ -62,22 +62,22 @@ const templates: Template[] = [
     color: "text-blue-600 bg-blue-100",
     changes: [
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Mortgage payment ($2,000/mo)",
         data: { name: "Mortgage Payment", amount: 2000, category: "Housing", isRecurring: true },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Property tax ($400/mo)",
         data: { name: "Property Tax", amount: 400, category: "Housing", isRecurring: true },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Home insurance ($150/mo)",
         data: { name: "Home Insurance", amount: 150, category: "Insurance", isRecurring: true },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Home maintenance ($200/mo)",
         data: { name: "Home Maintenance", amount: 200, category: "Housing", isRecurring: true },
       },
@@ -101,12 +101,12 @@ const templates: Template[] = [
         data: { name: "Car Loan", balance: 30000, interestRate: 5.9, minimumPayment: 550, type: "AUTO" },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Car insurance increase ($150/mo)",
         data: { name: "Car Insurance", amount: 150, category: "Insurance", isRecurring: true },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Gas expense ($200/mo)",
         data: { name: "Gas & Fuel", amount: 200, category: "Transportation", isRecurring: true },
       },
@@ -125,17 +125,17 @@ const templates: Template[] = [
     color: "text-pink-600 bg-pink-100",
     changes: [
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Childcare expense ($1,500/mo)",
         data: { name: "Childcare / Daycare", amount: 1500, category: "Childcare", isRecurring: true },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Health insurance increase ($300/mo)",
         data: { name: "Health Insurance Increase", amount: 300, category: "Insurance", isRecurring: true },
       },
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Baby supplies ($200/mo)",
         data: { name: "Baby Supplies", amount: 200, category: "Childcare", isRecurring: true },
       },
@@ -163,7 +163,7 @@ const templates: Template[] = [
     color: "text-purple-600 bg-purple-100",
     changes: [
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Startup costs ($10,000 one-time)",
         data: { name: "Startup Costs", amount: 10000, category: "Business", isRecurring: false },
       },
@@ -182,7 +182,7 @@ const templates: Template[] = [
     color: "text-red-600 bg-red-100",
     changes: [
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Extra debt payments ($500/mo)",
         data: { name: "Extra Debt Payments", amount: 500, category: "Debt Payoff", isRecurring: true },
       },
@@ -196,7 +196,7 @@ const templates: Template[] = [
     color: "text-emerald-600 bg-emerald-100",
     changes: [
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "Max 401k/IRA contributions ($1,917/mo)",
         data: { name: "401k/IRA Contributions", amount: 1917, category: "Savings", isRecurring: true },
       },
@@ -215,7 +215,7 @@ const templates: Template[] = [
     color: "text-indigo-600 bg-indigo-100",
     changes: [
       {
-        type: "create_expense",
+        type: "create_budget",
         label: "New rent ($1,800/mo)",
         data: { name: "New City Rent", amount: 1800, category: "Housing", isRecurring: true },
       },
@@ -233,14 +233,14 @@ const templates: Template[] = [
 // ---------------------------------------------------------------------------
 
 const changeTypeLabels: Record<TemplateChange["type"], string> = {
-  create_expense: "New Expense",
+  create_budget: "Budget",
   create_debt: "New Debt",
   create_asset: "New Asset",
   create_income: "New Income",
 };
 
 const changeTypeBadgeColors: Record<TemplateChange["type"], string> = {
-  create_expense: "bg-red-100 text-red-700",
+  create_budget: "bg-red-100 text-red-700",
   create_debt: "bg-orange-100 text-orange-700",
   create_asset: "bg-blue-100 text-blue-700",
   create_income: "bg-green-100 text-green-700",
@@ -248,8 +248,8 @@ const changeTypeBadgeColors: Record<TemplateChange["type"], string> = {
 
 function apiEndpoint(type: TemplateChange["type"]): string {
   switch (type) {
-    case "create_expense":
-      return "/api/expenses";
+    case "create_budget":
+      return "/api/budget";
     case "create_debt":
       return "/api/debts";
     case "create_asset":
@@ -293,7 +293,37 @@ export default function ScenarioTemplatesPage() {
     setApplying(true);
 
     try {
+      // Aggregate budget changes by category (multiple template items may
+      // target the same category, e.g. "Mortgage" + "Property Tax" → housing)
+      const budgetAggregated = new Map<string, { monthlyAmount: number; isFixed: boolean }>();
+      const nonBudgetChanges: typeof editedChanges = [];
+
       for (const change of editedChanges) {
+        if (change.type === "create_budget") {
+          const cat = (change.data.category as string || "other").toLowerCase();
+          const amt = Number(change.data.amount) || Number(change.data.monthlyAmount) || 0;
+          const existing = budgetAggregated.get(cat);
+          budgetAggregated.set(cat, {
+            monthlyAmount: (existing?.monthlyAmount ?? 0) + amt,
+            isFixed: existing?.isFixed ?? (change.data.isFixed !== false),
+          });
+        } else {
+          nonBudgetChanges.push(change);
+        }
+      }
+
+      // Send aggregated budget categories
+      for (const [category, data] of budgetAggregated) {
+        const res = await fetch("/api/budget", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category, ...data }),
+        });
+        if (!res.ok) throw new Error(`Failed to create budget for ${category}`);
+      }
+
+      // Send non-budget changes (debts, assets, income) as before
+      for (const change of nonBudgetChanges) {
         const res = await fetch(apiEndpoint(change.type), {
           method: "POST",
           headers: { "Content-Type": "application/json" },

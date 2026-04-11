@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       // Whitelist allowed fields per entity type to prevent injection
       const ALLOWED_FIELDS: Record<string, string[]> = {
         income: ["name", "amount", "frequency", "taxRate"],
-        expense: ["name", "amount", "frequency", "category", "isFixed"],
+        budgetCategory: ["category", "monthlyAmount", "isFixed", "rolloverEnabled"],
         debt: ["name", "balance", "interestRate", "minimumPayment", "type", "originalLoan", "loanTermMonths"],
         asset: ["name", "value", "type", "growthRate", "monthlyContribution"],
         goal: ["name", "targetAmount", "currentAmount", "targetDate", "priority", "type"],

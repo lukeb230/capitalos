@@ -75,8 +75,8 @@ export async function getActualSpending(
   month: number,
   year: number,
 ): Promise<Record<string, number>> {
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+  const startDate = new Date(Date.UTC(year, month - 1, 1));
+  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
   // Get all Plaid account IDs for this profile
   const plaidAccounts = await prisma.plaidAccount.findMany({
@@ -161,7 +161,7 @@ export async function computeAndStoreRollover(
   let totalRollover = 0;
 
   for (const cat of categories) {
-    const override = cat.overrides[0] ?? null;
+    const override = cat.overrides.find(o => o.month === prevMonth && o.year === prevYear) ?? null;
     const eff = getEffectiveBudget(
       cat.monthlyAmount,
       cat.rolloverEnabled,

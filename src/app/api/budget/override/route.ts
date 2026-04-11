@@ -10,8 +10,8 @@ export async function GET(req: Request) {
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
 
-  if (!month || !year) {
-    return NextResponse.json({ error: "month and year required" }, { status: 400 });
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1900) {
+    return NextResponse.json({ error: "Valid month (1-12) and year required" }, { status: 400 });
   }
 
   const overrides = await prisma.budgetOverride.findMany({
@@ -30,8 +30,14 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { budgetCategoryId, month, year, overrideAmount, note } = body;
 
-  if (!budgetCategoryId || !month || !year) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  if (!budgetCategoryId || !Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1900) {
+    return NextResponse.json({ error: "Valid budgetCategoryId, month (1-12), and year required" }, { status: 400 });
+  }
+  if (overrideAmount !== undefined && overrideAmount !== null && (typeof overrideAmount !== "number" || overrideAmount < 0)) {
+    return NextResponse.json({ error: "Invalid overrideAmount" }, { status: 400 });
+  }
+  if (note !== undefined && note !== null && (typeof note !== "string" || note.length > 500)) {
+    return NextResponse.json({ error: "Note too long (max 500 chars)" }, { status: 400 });
   }
 
   const cat = await prisma.budgetCategory.findUnique({ where: { id: budgetCategoryId } });

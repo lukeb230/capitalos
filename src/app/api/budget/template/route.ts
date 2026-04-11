@@ -86,6 +86,13 @@ export async function POST(req: Request) {
   // Filter out $0 allocations
   allocations = allocations.filter((a) => a.amount > 0);
 
+  if (allocations.length === 0) {
+    return NextResponse.json(
+      { error: "No budget allocations to create — check that income is greater than zero" },
+      { status: 400 },
+    );
+  }
+
   // Upsert each category
   const results = await Promise.all(
     allocations.map((a) =>

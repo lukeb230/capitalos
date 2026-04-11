@@ -9,8 +9,8 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { month, year } = body;
 
-  if (!month || !year) {
-    return NextResponse.json({ error: "month and year required" }, { status: 400 });
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1900) {
+    return NextResponse.json({ error: "Valid month (1-12) and year required" }, { status: 400 });
   }
 
   const totalRollover = await computeAndStoreRollover(profileId, month, year);

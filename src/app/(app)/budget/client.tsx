@@ -108,6 +108,10 @@ export function BudgetClient({
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
 
+  // Navigation loading
+  const [navLoading, setNavLoading] = useState(false);
+  const [navError, setNavError] = useState<string | null>(null);
+
   // Dialogs
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<BudgetCategoryRow | null>(null);
@@ -170,17 +174,25 @@ export function BudgetClient({
     let y = year;
     if (m < 1) { m = 12; y--; }
     if (m > 12) { m = 1; y++; }
+
+    if (!Number.isInteger(m) || !Number.isInteger(y)) return;
+
+    setNavLoading(true);
+    setNavError(null);
     setMonth(m);
     setYear(y);
 
-    // Fetch fresh data for the new month
-    const [catRes, actualRes] = await Promise.all([
-      fetch(`/api/budget`),
-      fetch(`/api/budget/override?month=${m}&year=${y}`),
-    ]);
-    if (catRes.ok) {
+    try {
+      const [catRes, actualRes, spendRes] = await Promise.all([
+        fetch("/api/budget"),
+        fetch(`/api/budget/override?month=${m}&year=${y}`),
+        fetch(`/api/transactions?month=${m}&year=${y}&summary=true`),
+      ]);
+
+      if (!catRes.ok) throw new Error("Failed to load budget categories");
+
       const cats: BudgetCategoryRow[] = await catRes.json();
-      // Merge overrides for the target month into categories
+
       if (actualRes.ok) {
         const overrides: BudgetOverrideRow[] = await actualRes.json();
         for (const cat of cats) {
@@ -190,20 +202,17 @@ export function BudgetClient({
         }
       }
       setCategories(cats);
-    }
 
-    // Fetch actual spending for the new month via a lightweight server call
-    try {
-      const res = await fetch(
-        `/api/transactions?month=${m}&year=${y}&summary=true`,
-      );
-      if (res.ok) {
-        const data = await res.json();
+      if (spendRes.ok) {
+        const data = await spendRes.json();
         setActual(data.byCategory ?? {});
+      } else {
+        setActual({});
       }
-    } catch {
-      // If the summary endpoint doesn't exist yet, zero out
-      setActual({});
+    } catch (e) {
+      setNavError(e instanceof Error ? e.message : "Failed to load month data");
+    } finally {
+      setNavLoading(false);
     }
   }
 
@@ -323,16 +332,21 @@ export function BudgetClient({
       </div>
 
       {/* Month Selector */}
-      <div className="flex items-center justify-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigateMonth(-1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-lg font-semibold min-w-[180px] text-center">
-          {MONTH_NAMES[month - 1]} {year}
-        </span>
-        <Button variant="ghost" size="sm" onClick={() => navigateMonth(1)}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigateMonth(-1)} disabled={navLoading}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-lg font-semibold min-w-[180px] text-center">
+            {navLoading ? "Loading…" : `${MONTH_NAMES[month - 1]} ${year}`}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => navigateMonth(1)} disabled={navLoading}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {navError && (
+          <p className="text-xs text-red-500">{navError}</p>
+        )}
       </div>
 
       {/* Summary Cards */}
