@@ -172,6 +172,9 @@ export function BudgetClient({
   const totalRemaining = totalBudgeted - totalSpent;
   const totalPct =
     totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0;
+  const totalInvestmentContributions = investmentContributions.reduce(
+    (s, c) => s + c.amount, 0,
+  );
 
   const unbudgetedCategories = BUDGET_CATEGORIES.filter(
     (c) => !categories.some((cat) => cat.category === c.key),
@@ -523,13 +526,13 @@ export function BudgetClient({
               <div>
                 <p className="text-sm font-medium">Unbudgeted Income</p>
                 <p className="text-xs text-muted-foreground">
-                  Net income minus total budget = savings surplus
+                  Net income minus budget minus investment contributions
                 </p>
               </div>
               <p
-                className={`text-lg font-bold ${monthlyNetIncome - totalBudgeted >= 0 ? "text-emerald-600" : "text-red-500"}`}
+                className={`text-lg font-bold ${monthlyNetIncome - totalBudgeted - totalInvestmentContributions >= 0 ? "text-emerald-600" : "text-red-500"}`}
               >
-                {formatCurrency(monthlyNetIncome - totalBudgeted)}/mo
+                {formatCurrency(monthlyNetIncome - totalBudgeted - totalInvestmentContributions)}/mo
               </p>
             </CardContent>
           </Card>
