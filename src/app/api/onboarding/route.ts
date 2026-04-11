@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     try { body = await req.json(); } catch {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
-    const { incomes, expenses, debts, assets, goals, currentAge, retirementAge, filingStatus, state } = body;
+    const { incomes, budgetCategories, debts, assets, goals, currentAge, retirementAge, filingStatus, state } = body;
 
     // Update profile with age and tax fields if provided
     const profileData: Record<string, unknown> = {};
@@ -35,16 +35,18 @@ export async function POST(req: Request) {
           });
         }
       }
-      if (Array.isArray(expenses)) {
-        for (const item of expenses) {
-          await tx.expense.create({
-            data: {
+      if (Array.isArray(budgetCategories)) {
+        for (const item of budgetCategories) {
+          await tx.budgetCategory.upsert({
+            where: {
+              profileId_category: { profileId, category: item.category || "other" },
+            },
+            update: { monthlyAmount: item.monthlyAmount || item.amount || 0 },
+            create: {
               profileId,
-              name: item.name,
-              amount: item.amount,
-              frequency: item.frequency || "monthly",
               category: item.category || "other",
-              isFixed: item.isFixed || false,
+              monthlyAmount: item.monthlyAmount || item.amount || 0,
+              isFixed: item.isFixed ?? true,
             },
           });
         }

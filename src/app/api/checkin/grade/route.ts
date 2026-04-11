@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
-import { toMonthly } from "@/lib/engine/calculator";
 import { computeGrades } from "@/lib/checkin/grading";
 
 export async function POST(req: Request) {
@@ -15,14 +14,12 @@ export async function POST(req: Request) {
   }
   const { expensesByCategory } = body;
 
-  // Fetch user's budgeted expenses
-  const expenses = await prisma.expense.findMany({ where: { profileId } });
+  // Fetch user's budget categories (amounts are already monthly)
+  const budgetCategories = await prisma.budgetCategory.findMany({ where: { profileId } });
 
-  // Sum budgeted amounts per category using toMonthly for frequency conversion
   const budgeted: Record<string, number> = {};
-  for (const e of expenses) {
-    const monthly = toMonthly(e.amount, e.frequency);
-    budgeted[e.category] = (budgeted[e.category] || 0) + monthly;
+  for (const c of budgetCategories) {
+    budgeted[c.category] = (budgeted[c.category] || 0) + c.monthlyAmount;
   }
 
   const grades = computeGrades(expensesByCategory, budgeted);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActiveProfileId } from "@/lib/profile";
+import { budgetToExpenseInputs, getActualSpending } from "@/lib/budget/helpers";
 import {
   calculateMonthlyCashFlow,
   calculateMonthlyNetIncome,
@@ -23,9 +24,9 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profileId = await getActiveProfileId();
-  const [incomes, expenses, debts, assets, goals, profile, checkins, plaidItemCount] = await Promise.all([
+  const [incomes, budgetCategories, debts, assets, goals, profile, checkins, plaidItemCount] = await Promise.all([
     prisma.income.findMany({ where: { profileId } }),
-    prisma.expense.findMany({ where: { profileId } }),
+    prisma.budgetCategory.findMany({ where: { profileId } }),
     prisma.debt.findMany({ where: { profileId } }),
     prisma.asset.findMany({ where: { profileId } }),
     prisma.goal.findMany({ where: { profileId } }),
@@ -41,9 +42,7 @@ export default async function DashboardPage() {
   const incomeInputs = incomes.map((i) => ({
     id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate, isNetInput: i.isNetInput,
   }));
-  const expenseInputs = expenses.map((e) => ({
-    id: e.id, name: e.name, amount: e.amount, frequency: e.frequency, category: e.category, isFixed: e.isFixed,
-  }));
+  const expenseInputs = budgetToExpenseInputs(budgetCategories);
   const debtInputs = debts.map((d) => ({
     id: d.id, name: d.name, balance: d.balance, interestRate: d.interestRate, minimumPayment: d.minimumPayment, type: d.type, originalLoan: d.originalLoan, loanTermMonths: d.loanTermMonths, collateralValue: d.collateralValue, appreciationRate: d.appreciationRate,
   }));
@@ -55,6 +54,17 @@ export default async function DashboardPage() {
   }));
 
   const state = { incomes: incomeInputs, expenses: expenseInputs, debts: debtInputs, assets: assetInputs, goals: goalInputs };
+
+  // Budget status for the dashboard card (current month actual vs budgeted)
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const actualSpending = await getActualSpending(profileId, currentMonth, currentYear);
+  const budgetStatusRows = budgetCategories.map((c) => ({
+    category: c.category,
+    budgeted: c.monthlyAmount,
+    spent: actualSpending[c.category] ?? 0,
+  }));
 
   const monthlyGrossIncome = calculateMonthlyGrossIncome(incomeInputs);
   const monthlyIncome = calculateMonthlyNetIncome(incomeInputs);
@@ -211,6 +221,7 @@ export default async function DashboardPage() {
       filingStatus={profile?.filingStatus || null}
       taxState={profile?.state || null}
       hasPlaid={plaidItemCount > 0}
+      budgetStatusRows={budgetStatusRows}
     />
   );
 }

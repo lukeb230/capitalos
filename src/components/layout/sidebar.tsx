@@ -11,7 +11,7 @@ import {
   Target,
   GitBranch,
   Bot,
-  Receipt,
+  Wallet,
   Menu,
   X,
   Users,
@@ -26,7 +26,7 @@ import { ThemeToggle } from "./theme-toggle";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Income", href: "/income", icon: DollarSign },
-  { name: "Expenses", href: "/expenses", icon: Receipt },
+  { name: "Budget", href: "/budget", icon: Wallet },
   { name: "Debts", href: "/debts", icon: CreditCard },
   { name: "Assets", href: "/assets", icon: Landmark },
   { name: "Goals", href: "/goals", icon: Target },

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
-import { toMonthly } from "@/lib/engine/calculator";
 
 export async function POST(req: Request) {
   let profileId;
@@ -23,11 +22,11 @@ export async function POST(req: Request) {
     });
   }
 
-  // Fetch user's budget
-  const expenses = await prisma.expense.findMany({ where: { profileId } });
+  // Fetch user's budget categories (amounts are already monthly)
+  const budgetCategories = await prisma.budgetCategory.findMany({ where: { profileId } });
   const budgeted: Record<string, number> = {};
-  for (const e of expenses) {
-    budgeted[e.category] = (budgeted[e.category] || 0) + toMonthly(e.amount, e.frequency);
+  for (const c of budgetCategories) {
+    budgeted[c.category] = (budgeted[c.category] || 0) + c.monthlyAmount;
   }
 
   const systemPrompt = `You are a personal budget optimizer inside a financial planning app. The user has completed their monthly check-in for ${month}/${year}.

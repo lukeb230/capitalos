@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActiveProfileId } from "@/lib/profile";
-import { toMonthly, calculateNetWorth } from "@/lib/engine/calculator";
+import { calculateNetWorth } from "@/lib/engine/calculator";
 import CheckinWizard from "./client";
 
 export const dynamic = "force-dynamic";
@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function CheckinPage() {
   const profileId = await getActiveProfileId();
 
-  const [expenses, assets, debts, checkins] = await Promise.all([
-    prisma.expense.findMany({ where: { profileId } }),
+  const [budgetCategories, assets, debts, checkins] = await Promise.all([
+    prisma.budgetCategory.findMany({ where: { profileId } }),
     prisma.asset.findMany({ where: { profileId } }),
     prisma.debt.findMany({ where: { profileId } }),
     prisma.monthlyCheckin.findMany({
@@ -22,11 +22,10 @@ export default async function CheckinPage() {
     }),
   ]);
 
-  // Build budget map from expenses
+  // Build budget map from budget categories (amounts are already monthly)
   const budget: Record<string, number> = {};
-  for (const e of expenses) {
-    const monthly = toMonthly(e.amount, e.frequency);
-    budget[e.category] = (budget[e.category] || 0) + monthly;
+  for (const c of budgetCategories) {
+    budget[c.category] = (budget[c.category] || 0) + c.monthlyAmount;
   }
 
   const assetInputs = assets.map((a) => ({ id: a.id, name: a.name, value: a.value, type: a.type, growthRate: a.growthRate, monthlyContribution: a.monthlyContribution }));

@@ -293,7 +293,17 @@ export default function OnboardingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          incomes, expenses, debts, assets, goals,
+          incomes,
+          // Transform onboarding expenses into budget categories (grouped by category, normalized to monthly)
+          budgetCategories: Object.values(
+            expenses.reduce<Record<string, { category: string; monthlyAmount: number; isFixed: boolean }>>((acc, e) => {
+              const monthly = e.frequency === "annual" ? e.amount / 12 : e.frequency === "biweekly" ? (e.amount * 26) / 12 : e.frequency === "weekly" ? (e.amount * 52) / 12 : e.amount;
+              if (!acc[e.category]) acc[e.category] = { category: e.category, monthlyAmount: 0, isFixed: e.isFixed };
+              acc[e.category].monthlyAmount += monthly;
+              return acc;
+            }, {}),
+          ),
+          debts, assets, goals,
           currentAge: currentAge ? parseInt(currentAge) : null,
           retirementAge: retirementAge ? parseInt(retirementAge) : null,
           filingStatus: filingStatus || null,

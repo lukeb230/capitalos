@@ -12,7 +12,7 @@ interface ScenarioChangeData {
 
 interface ProposedAction {
   operation: "create" | "update" | "delete";
-  entityType: "income" | "expense" | "debt" | "asset" | "goal" | "scenario";
+  entityType: "income" | "budgetCategory" | "debt" | "asset" | "goal" | "scenario";
   id?: string;
   data?: Record<string, unknown>;
   description?: string;
@@ -20,7 +20,7 @@ interface ProposedAction {
 
 const prismaModels: Record<string, keyof typeof prisma> = {
   income: "income",
-  expense: "expense",
+  budgetCategory: "budgetCategory",
   debt: "debt",
   asset: "asset",
   goal: "goal",

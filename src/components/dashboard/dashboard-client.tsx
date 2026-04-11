@@ -15,6 +15,7 @@ import { NetWorthHistoryChart } from "@/components/charts/net-worth-history";
 import { calculateTotalTax, type FilingStatus } from "@/lib/engine/tax";
 import { generateCSV } from "@/lib/export/csv-export";
 import { PlaidRefreshButton } from "@/components/plaid-refresh-button";
+import { BudgetStatusCard, type BudgetStatusRow } from "@/components/dashboard/budget-status-card";
 import { formatCurrency, formatMonths } from "@/lib/utils";
 import {
   DollarSign,
@@ -81,6 +82,7 @@ interface Props {
   filingStatus: string | null;
   taxState: string | null;
   hasPlaid: boolean;
+  budgetStatusRows: BudgetStatusRow[];
 }
 
 function StatCard({
@@ -104,7 +106,7 @@ function StatCard({
 
 type DashboardSection =
   | "projection" | "waterfall" | "dti" | "debtPayoff" | "goals" | "milestones" | "aiInsights"
-  | "netWorthHistory" | "taxEstimate"
+  | "netWorthHistory" | "taxEstimate" | "budgetStatus"
   | "incomeVsExpenses" | "expenseDonut" | "fixedVsVariable" | "assetAllocation"
   | "netWorthBreakdown" | "debtInterestCost" | "goalCountdown" | "debtFreeCountdown";
 
@@ -118,6 +120,7 @@ const sectionLabels: Record<DashboardSection, string> = {
   aiInsights: "AI Insights",
   netWorthHistory: "Net Worth History",
   taxEstimate: "Annual Tax Estimate",
+  budgetStatus: "Budget Status",
   incomeVsExpenses: "Income vs Expenses",
   expenseDonut: "Expense Donut",
   fixedVsVariable: "Fixed vs Variable Expenses",
@@ -130,7 +133,7 @@ const sectionLabels: Record<DashboardSection, string> = {
 
 const defaultSections: DashboardSection[] = [
   "projection", "waterfall", "dti", "debtPayoff", "goals", "milestones", "aiInsights",
-  "netWorthHistory", "taxEstimate",
+  "netWorthHistory", "taxEstimate", "budgetStatus",
 ];
 
 const optionalSections: DashboardSection[] = [
@@ -170,7 +173,7 @@ export function DashboardClient({
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debts, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, spendingCategories,
   fixedExpenses, variableExpenses, assetAllocation, assetBreakdown,
-  netWorthHistory, monthlyGrossIncome, filingStatus, taxState, hasPlaid,
+  netWorthHistory, monthlyGrossIncome, filingStatus, taxState, hasPlaid, budgetStatusRows,
 }: Props) {
   const [projectionRange, setProjectionRange] = useState<"1yr" | "5yr">("5yr");
   const [customizing, setCustomizing] = useState(false);
@@ -403,6 +406,9 @@ export function DashboardClient({
           </Card>
         );
       }
+
+      case "budgetStatus":
+        return <BudgetStatusCard key={section} rows={budgetStatusRows} />;
 
       case "incomeVsExpenses": {
         const totalOutflow = monthlyExpenses + monthlyDebtPayments + totalContributions;
@@ -679,7 +685,7 @@ export function DashboardClient({
         {/* MAIN: Sections */}
         <div className="space-y-6">
           {visibleSections
-            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown", "netWorthHistory", "taxEstimate"].includes(s))
+            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown", "netWorthHistory", "taxEstimate", "budgetStatus"].includes(s))
             .map((section) => renderSection(section))}
         </div>
 
@@ -690,6 +696,7 @@ export function DashboardClient({
           {visibleSections.includes("goalCountdown") && renderSection("goalCountdown")}
           {visibleSections.includes("debtFreeCountdown") && renderSection("debtFreeCountdown")}
           {visibleSections.includes("aiInsights") && renderSection("aiInsights")}
+          {visibleSections.includes("budgetStatus") && renderSection("budgetStatus")}
 
           {/* Goal Tracker */}
           {goalProjections.length > 0 && (

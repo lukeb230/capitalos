@@ -75,13 +75,8 @@ async function migrate() {
     console.log(`Income: ${incomes.length}`);
   }
 
-  const expenses = load("Expense")
-    .map((r) => dateFields(r, ["createdAt", "updatedAt"]))
-    .map((r) => boolFields(r, ["isFixed"]));
-  if (expenses.length) {
-    await prisma.expense.createMany({ data: expenses as never, skipDuplicates: true });
-    console.log(`Expense: ${expenses.length}`);
-  }
+  // Note: Expense model has been replaced by BudgetCategory.
+  // Old expense data is not migrated — budget starts from scratch.
 
   const debts = load("Debt").map((r) =>
     dateFields(r, ["createdAt", "updatedAt"]),

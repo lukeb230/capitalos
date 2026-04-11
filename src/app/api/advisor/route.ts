@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
+import { budgetToExpenseInputs } from "@/lib/budget/helpers";
 import {
   calculateMonthlyCashFlow,
   calculateMonthlyNetIncome,
@@ -46,16 +47,16 @@ export async function POST(req: Request) {
     });
   }
 
-  const [incomes, expenses, debts, assets, goals] = await Promise.all([
+  const [incomes, budgetCategories, debts, assets, goals] = await Promise.all([
     prisma.income.findMany({ where: { profileId } }),
-    prisma.expense.findMany({ where: { profileId } }),
+    prisma.budgetCategory.findMany({ where: { profileId } }),
     prisma.debt.findMany({ where: { profileId } }),
     prisma.asset.findMany({ where: { profileId } }),
     prisma.goal.findMany({ where: { profileId } }),
   ]);
 
   const incomeInputs = incomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate, isNetInput: i.isNetInput }));
-  const expenseInputs = expenses.map((e) => ({ id: e.id, name: e.name, amount: e.amount, frequency: e.frequency, category: e.category, isFixed: e.isFixed }));
+  const expenseInputs = budgetToExpenseInputs(budgetCategories);
   const debtInputs = debts.map((d) => ({ id: d.id, name: d.name, balance: d.balance, interestRate: d.interestRate, minimumPayment: d.minimumPayment, type: d.type, originalLoan: d.originalLoan, loanTermMonths: d.loanTermMonths }));
   const assetInputs = assets.map((a) => ({ id: a.id, name: a.name, value: a.value, type: a.type, growthRate: a.growthRate, monthlyContribution: a.monthlyContribution }));
 
@@ -86,7 +87,7 @@ INCOME SOURCES (with IDs for actions):
 ${incomes.map((i) => `- [id:${i.id}] ${i.name}: $${toMonthly(i.amount, i.frequency).toFixed(0)}/mo (stored as $${i.amount} ${i.frequency}, ${i.taxRate}% tax)`).join("\n")}
 
 EXPENSES (with IDs for actions):
-${expenses.map((e) => `- [id:${e.id}] ${e.name}: $${toMonthly(e.amount, e.frequency).toFixed(0)}/mo (stored as $${e.amount} ${e.frequency}, ${e.category}, ${e.isFixed ? "fixed" : "variable"})`).join("\n")}
+${expenseInputs.map((e) => `- [id:${e.id}] ${e.name}: $${toMonthly(e.amount, e.frequency).toFixed(0)}/mo (stored as $${e.amount} ${e.frequency}, ${e.category}, ${e.isFixed ? "fixed" : "variable"})`).join("\n")}
 
 DEBTS (with IDs for actions):
 ${debtInputs.map((d) => {

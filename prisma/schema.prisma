@@ -20,14 +20,14 @@ model Profile {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  incomes    Income[]
-  expenses   Expense[]
-  debts      Debt[]
-  assets     Asset[]
-  goals      Goal[]
-  scenarios  Scenario[]
-  checkins   MonthlyCheckin[]
-  plaidItems PlaidItem[]
+  incomes          Income[]
+  budgetCategories BudgetCategory[]
+  debts            Debt[]
+  assets           Asset[]
+  goals            Goal[]
+  scenarios        Scenario[]
+  checkins         MonthlyCheckin[]
+  plaidItems       PlaidItem[]
 }
 
 model Income {
@@ -47,19 +47,35 @@ model Income {
   @@index([profileId])
 }
 
-model Expense {
-  id        String   @id @default(cuid())
-  profileId String
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  name      String
-  amount    Float
-  frequency String   @default("monthly")
-  category  String   @default("other")
-  isFixed   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model BudgetCategory {
+  id              String           @id @default(cuid())
+  profileId       String
+  profile         Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category        String
+  monthlyAmount   Float
+  isFixed         Boolean          @default(true)
+  rolloverEnabled Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
+  overrides BudgetOverride[]
+
+  @@unique([profileId, category])
   @@index([profileId])
+}
+
+model BudgetOverride {
+  id               String         @id @default(cuid())
+  budgetCategoryId String
+  budgetCategory   BudgetCategory @relation(fields: [budgetCategoryId], references: [id], onDelete: Cascade)
+  month            Int
+  year             Int
+  overrideAmount   Float?
+  rolloverIn       Float          @default(0)
+  note             String?
+
+  @@unique([budgetCategoryId, month, year])
+  @@index([budgetCategoryId])
 }
 
 model Debt {

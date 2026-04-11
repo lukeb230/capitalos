@@ -9,7 +9,8 @@ async function main() {
   await prisma.goal.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.debt.deleteMany();
-  await prisma.expense.deleteMany();
+  await prisma.budgetOverride.deleteMany();
+  await prisma.budgetCategory.deleteMany();
   await prisma.income.deleteMany();
   await prisma.profile.deleteMany();
 
@@ -28,18 +29,17 @@ async function main() {
     data: { profileId: alex.id, name: "Freelance Web Dev", amount: 500, frequency: "monthly", taxRate: 25 },
   });
 
-  const alexExpenses = [
-    { name: "Rent", amount: 1800, category: "housing", isFixed: true },
-    { name: "Car Payment", amount: 450, category: "transport", isFixed: true },
-    { name: "Utilities", amount: 200, category: "utilities", isFixed: true },
-    { name: "Groceries", amount: 600, category: "food", isFixed: false },
-    { name: "Subscriptions", amount: 150, category: "subscriptions", isFixed: true },
-    { name: "Dining Out", amount: 300, category: "entertainment", isFixed: false },
-    { name: "Gas", amount: 200, category: "transport", isFixed: false },
-    { name: "Car Insurance", amount: 100, category: "insurance", isFixed: true },
+  const alexBudget = [
+    { category: "housing", monthlyAmount: 1800, isFixed: true },
+    { category: "transport", monthlyAmount: 650, isFixed: false },   // car payment + gas
+    { category: "utilities", monthlyAmount: 200, isFixed: true },
+    { category: "food", monthlyAmount: 600, isFixed: false },
+    { category: "subscriptions", monthlyAmount: 150, isFixed: true },
+    { category: "entertainment", monthlyAmount: 300, isFixed: false },
+    { category: "insurance", monthlyAmount: 100, isFixed: true },
   ];
-  for (const e of alexExpenses) {
-    await prisma.expense.create({ data: { profileId: alex.id, ...e, frequency: "monthly" } });
+  for (const b of alexBudget) {
+    await prisma.budgetCategory.create({ data: { profileId: alex.id, ...b } });
   }
 
   await prisma.debt.create({ data: { profileId: alex.id, name: "Student Loans", balance: 22000, interestRate: 5.5, minimumPayment: 350, type: "student" } });
@@ -80,16 +80,15 @@ async function main() {
   await prisma.income.create({ data: { profileId: jordan.id, name: "Marketing Manager Salary", amount: 5200, frequency: "monthly", taxRate: 24 } });
   await prisma.income.create({ data: { profileId: jordan.id, name: "Etsy Shop", amount: 800, frequency: "monthly", taxRate: 20 } });
 
-  const jordanExpenses = [
-    { name: "Mortgage", amount: 2200, category: "housing", isFixed: true },
-    { name: "HOA Fees", amount: 350, category: "housing", isFixed: true },
-    { name: "Groceries", amount: 500, category: "food", isFixed: false },
-    { name: "Utilities", amount: 250, category: "utilities", isFixed: true },
-    { name: "Streaming & Subscriptions", amount: 80, category: "subscriptions", isFixed: true },
-    { name: "Dining Out", amount: 400, category: "entertainment", isFixed: false },
+  const jordanBudget = [
+    { category: "housing", monthlyAmount: 2550, isFixed: true },    // mortgage + HOA
+    { category: "food", monthlyAmount: 500, isFixed: false },
+    { category: "utilities", monthlyAmount: 250, isFixed: true },
+    { category: "subscriptions", monthlyAmount: 80, isFixed: true },
+    { category: "entertainment", monthlyAmount: 400, isFixed: false },
   ];
-  for (const e of jordanExpenses) {
-    await prisma.expense.create({ data: { profileId: jordan.id, ...e, frequency: "monthly" } });
+  for (const b of jordanBudget) {
+    await prisma.budgetCategory.create({ data: { profileId: jordan.id, ...b } });
   }
 
   await prisma.debt.create({ data: { profileId: jordan.id, name: "Mortgage", balance: 285000, interestRate: 6.5, minimumPayment: 1800, type: "mortgage" } });

@@ -6,10 +6,10 @@ export async function GET(req: Request) {
   try {
     const profileId = await getActiveProfileIdFromRequest(req);
 
-    const [profile, incomes, expenses, debts, assets, goals, scenarios, checkins] = await Promise.all([
+    const [profile, incomes, budgetCategories, debts, assets, goals, scenarios, checkins] = await Promise.all([
       prisma.profile.findUnique({ where: { id: profileId } }),
       prisma.income.findMany({ where: { profileId } }),
-      prisma.expense.findMany({ where: { profileId } }),
+      prisma.budgetCategory.findMany({ where: { profileId } }),
       prisma.debt.findMany({ where: { profileId } }),
       prisma.asset.findMany({ where: { profileId } }),
       prisma.goal.findMany({ where: { profileId } }),
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         state: profile?.state,
       },
       incomes: incomes.map((i) => ({ name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate })),
-      expenses: expenses.map((e) => ({ name: e.name, amount: e.amount, frequency: e.frequency, category: e.category, isFixed: e.isFixed })),
+      budgetCategories: budgetCategories.map((c) => ({ category: c.category, monthlyAmount: c.monthlyAmount, isFixed: c.isFixed })),
       debts: debts.map((d) => ({ name: d.name, balance: d.balance, interestRate: d.interestRate, minimumPayment: d.minimumPayment, type: d.type, originalLoan: d.originalLoan, loanTermMonths: d.loanTermMonths })),
       assets: assets.map((a) => ({ name: a.name, value: a.value, type: a.type, growthRate: a.growthRate, monthlyContribution: a.monthlyContribution })),
       goals: goals.map((g) => ({ name: g.name, targetAmount: g.targetAmount, currentAmount: g.currentAmount, targetDate: g.targetDate, priority: g.priority, type: g.type })),

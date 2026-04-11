@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { getActiveProfileId } from "@/lib/profile";
-import { toMonthly } from "@/lib/engine/calculator";
 import { TrendsClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +20,7 @@ function safeParseJSON(str: string | null | undefined): Record<string, unknown> 
 export default async function TrendsPage() {
   const profileId = await getActiveProfileId();
 
-  const [checkins, expenses] = await Promise.all([
+  const [checkins, budgetCategories] = await Promise.all([
     prisma.monthlyCheckin.findMany({
       where: { profileId },
       orderBy: [{ year: "asc" }, { month: "asc" }],
@@ -30,7 +29,7 @@ export default async function TrendsPage() {
         expensesByCategory: true, overallGrade: true, gradeDetails: true, netWorth: true,
       },
     }),
-    prisma.expense.findMany({ where: { profileId } }),
+    prisma.budgetCategory.findMany({ where: { profileId } }),
   ]);
 
   const parsed = checkins.map((c) => ({
@@ -40,11 +39,10 @@ export default async function TrendsPage() {
     gradeDetails: safeParseJSON(c.gradeDetails) as Record<string, { budgeted: number; actual: number; grade: string }>,
   }));
 
-  // Build budget map
+  // Build budget map from budget categories (amounts are already monthly)
   const budget: Record<string, number> = {};
-  for (const e of expenses) {
-    const monthly = toMonthly(e.amount, e.frequency);
-    budget[e.category] = (budget[e.category] || 0) + monthly;
+  for (const c of budgetCategories) {
+    budget[c.category] = (budget[c.category] || 0) + c.monthlyAmount;
   }
 
   return <TrendsClient checkins={parsed} budget={budget} />;
