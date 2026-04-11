@@ -129,8 +129,8 @@ export function BudgetClient({
   const [form, setForm] = useState({
     category: "",
     monthlyAmount: "",
-    isFixed: "true",
-    rolloverEnabled: "false",
+    isFixed: "Fixed",
+    rolloverEnabled: "Off",
   });
 
   // -----------------------------------------------------------------------
@@ -243,8 +243,8 @@ export function BudgetClient({
     setForm({
       category: item.category,
       monthlyAmount: String(item.monthlyAmount),
-      isFixed: String(item.isFixed),
-      rolloverEnabled: String(item.rolloverEnabled),
+      isFixed: item.isFixed ? "Fixed" : "Variable",
+      rolloverEnabled: item.rolloverEnabled ? "On" : "Off",
     });
   }
 
@@ -258,8 +258,8 @@ export function BudgetClient({
       body: JSON.stringify({
         category: form.category,
         monthlyAmount: amount,
-        isFixed: form.isFixed === "true",
-        rolloverEnabled: form.rolloverEnabled === "true",
+        isFixed: form.isFixed === "Fixed",
+        rolloverEnabled: form.rolloverEnabled === "On",
       }),
     });
     setAddOpen(false);
@@ -277,8 +277,8 @@ export function BudgetClient({
       body: JSON.stringify({
         id: editItem.id,
         monthlyAmount: amount,
-        isFixed: form.isFixed === "true",
-        rolloverEnabled: form.rolloverEnabled === "true",
+        isFixed: form.isFixed === "Fixed",
+        rolloverEnabled: form.rolloverEnabled === "On",
       }),
     });
     setEditItem(null);
@@ -615,8 +615,8 @@ export function BudgetClient({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="true">Fixed</SelectItem>
-                    <SelectItem value="false">Variable</SelectItem>
+                    <SelectItem value="Fixed">Fixed</SelectItem>
+                    <SelectItem value="Variable">Variable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -632,8 +632,8 @@ export function BudgetClient({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="false">Off</SelectItem>
-                    <SelectItem value="true">On</SelectItem>
+                    <SelectItem value="Off">Off</SelectItem>
+                    <SelectItem value="On">On</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -682,8 +682,8 @@ export function BudgetClient({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="true">Fixed</SelectItem>
-                    <SelectItem value="false">Variable</SelectItem>
+                    <SelectItem value="Fixed">Fixed</SelectItem>
+                    <SelectItem value="Variable">Variable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -699,8 +699,8 @@ export function BudgetClient({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="false">Off</SelectItem>
-                    <SelectItem value="true">On</SelectItem>
+                    <SelectItem value="Off">Off</SelectItem>
+                    <SelectItem value="On">On</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
