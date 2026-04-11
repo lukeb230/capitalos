@@ -32,6 +32,7 @@ import {
   ArrowRightLeft,
   AlertTriangle,
   CheckCircle,
+  TrendingUp,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { BUDGET_CATEGORIES, categoryLabel } from "@/lib/budget/helpers";
@@ -60,12 +61,18 @@ interface BudgetCategoryRow {
   overrides: BudgetOverrideRow[];
 }
 
+interface InvestmentContribution {
+  name: string;
+  amount: number;
+}
+
 interface Props {
   initialCategories: BudgetCategoryRow[];
   initialActual: Record<string, number>;
   initialMonth: number;
   initialYear: number;
   monthlyNetIncome: number;
+  investmentContributions: InvestmentContribution[];
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +106,7 @@ export function BudgetClient({
   initialMonth,
   initialYear,
   monthlyNetIncome,
+  investmentContributions,
 }: Props) {
   const router = useRouter();
   const [categories, setCategories] =
@@ -502,24 +510,60 @@ export function BudgetClient({
         ))}
       </div>
 
-      {/* Surplus / unbudgeted income note */}
-      {totalBudgeted > 0 && (
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Unbudgeted Income</p>
-              <p className="text-xs text-muted-foreground">
-                Net income minus total budget = savings / investing surplus
+      {/* Bottom cards: unbudgeted income + investment contributions */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Unbudgeted income */}
+        {totalBudgeted > 0 && (
+          <Card>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Unbudgeted Income</p>
+                <p className="text-xs text-muted-foreground">
+                  Net income minus total budget = savings surplus
+                </p>
+              </div>
+              <p
+                className={`text-lg font-bold ${monthlyNetIncome - totalBudgeted >= 0 ? "text-emerald-600" : "text-red-500"}`}
+              >
+                {formatCurrency(monthlyNetIncome - totalBudgeted)}/mo
               </p>
-            </div>
-            <p
-              className={`text-lg font-bold ${monthlyNetIncome - totalBudgeted >= 0 ? "text-emerald-600" : "text-red-500"}`}
-            >
-              {formatCurrency(monthlyNetIncome - totalBudgeted)}/mo
-            </p>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Investment contributions */}
+        {investmentContributions.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  <p className="text-sm font-medium">Investment Contributions</p>
+                </div>
+                <p className="text-lg font-bold text-emerald-600">
+                  {formatCurrency(
+                    investmentContributions.reduce((s, c) => s + c.amount, 0),
+                  )}
+                  /mo
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {investmentContributions.map((c) => (
+                  <div
+                    key={c.name}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <span className="text-muted-foreground">{c.name}</span>
+                    <span className="font-medium">
+                      {formatCurrency(c.amount)}/mo
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* ----------------------------------------------------------------- */}
       {/* Add Category Dialog */}

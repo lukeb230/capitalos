@@ -12,13 +12,14 @@ export default async function BudgetPage() {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
 
-  const [categories, incomes] = await Promise.all([
+  const [categories, incomes, assets] = await Promise.all([
     prisma.budgetCategory.findMany({
       where: { profileId },
       include: { overrides: { where: { month, year } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.income.findMany({ where: { profileId } }),
+    prisma.asset.findMany({ where: { profileId } }),
   ]);
 
   const actualSpending = await getActualSpending(profileId, month, year);
@@ -33,6 +34,12 @@ export default async function BudgetPage() {
   }));
   const monthlyNetIncome = calculateMonthlyNetIncome(incomeInputs);
 
+  // Investment contributions: sum monthlyContribution from investment-type assets
+  const investmentContributions = assets
+    .filter((a) => a.type === "investment")
+    .map((a) => ({ name: a.name, amount: a.monthlyContribution }))
+    .filter((a) => a.amount > 0);
+
   return (
     <BudgetClient
       initialCategories={JSON.parse(JSON.stringify(categories))}
@@ -40,6 +47,7 @@ export default async function BudgetPage() {
       initialMonth={month}
       initialYear={year}
       monthlyNetIncome={monthlyNetIncome}
+      investmentContributions={investmentContributions}
     />
   );
 }
