@@ -15,9 +15,64 @@ export async function GET(req: Request) {
     const monthParam = parseInt(searchParams.get("month") || "");
     const yearParam = parseInt(searchParams.get("year") || "");
 
-    if (summaryMode && Number.isInteger(monthParam) && monthParam >= 1 && monthParam <= 12 && Number.isInteger(yearParam) && yearParam >= 1900) {
-      const byCategory = await getActualSpending(profileId, monthParam, yearParam);
-      return NextResponse.json({ byCategory });
+    if (Number.isInteger(monthParam) && monthParam >= 1 && monthParam <= 12 && Number.isInteger(yearParam) && yearParam >= 1900) {
+      if (summaryMode) {
+        const byCategory = await getActualSpending(profileId, monthParam, yearParam);
+        return NextResponse.json({ byCategory });
+      }
+
+      // List mode: return individual transactions for a specific month,
+      // using the same dedup logic as getActualSpending (checkin-linked
+      // OR unattached Plaid, never both — avoids double-counting).
+      const listMode = searchParams.get("list") === "true";
+      if (listMode) {
+        const startDate = new Date(Date.UTC(yearParam, monthParam - 1, 1));
+        const endDate = new Date(Date.UTC(yearParam, monthParam, 0, 23, 59, 59, 999));
+
+        const checkins = await prisma.monthlyCheckin.findMany({
+          where: { profileId, month: monthParam, year: yearParam },
+          select: { id: true },
+        });
+
+        let where;
+        if (checkins.length > 0) {
+          where = {
+            date: { gte: startDate, lte: endDate },
+            checkinId: { in: checkins.map((c) => c.id) },
+          };
+        } else {
+          const plaidAccounts = await prisma.plaidAccount.findMany({
+            where: { plaidItem: { profileId, isActive: true } },
+            select: { id: true },
+          });
+          where = {
+            date: { gte: startDate, lte: endDate },
+            plaidAccountId: { in: plaidAccounts.map((a) => a.id) },
+            checkinId: null as null,
+          };
+        }
+
+        const transactions = await prisma.transaction.findMany({
+          where,
+          include: {
+            plaidAccount: {
+              select: { name: true, mask: true, plaidItem: { select: { institutionName: true } } },
+            },
+          },
+          orderBy: { date: "desc" },
+          take: 2000,
+        });
+
+        const enriched = transactions.map((t) => ({
+          ...t,
+          accountLabel: t.plaidAccount
+            ? `${t.plaidAccount.plaidItem.institutionName} - ${t.plaidAccount.name}${t.plaidAccount.mask ? ` ****${t.plaidAccount.mask}` : ""}`
+            : t.source || "Manual",
+          plaidAccount: undefined,
+        }));
+
+        return NextResponse.json(enriched);
+      }
     }
 
     const days = parseInt(searchParams.get("days") || "90");

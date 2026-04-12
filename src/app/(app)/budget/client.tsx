@@ -377,21 +377,15 @@ export function BudgetClient({
     setTxFilterCat("all");
     setTxFilterAcct("all");
     try {
-      // Fetch transactions for the currently viewed month
-      const startDate = new Date(Date.UTC(year, month - 1, 1));
-      const endDate = new Date(Date.UTC(year, month, 0));
-      const daysInRange = Math.ceil(
-        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-      ) + 60; // pad to ensure we capture the full month
-      const res = await fetch(`/api/transactions?days=${daysInRange}`);
+      // Fetch transactions for the currently viewed month via the summary
+      // endpoint, which uses the same dedup logic as getActualSpending
+      // (checkin-linked OR unattached Plaid, never both).
+      const res = await fetch(
+        `/api/transactions?month=${month}&year=${year}&list=true`,
+      );
       if (res.ok) {
-        const data: TransactionRow[] = await res.json();
-        // Filter to just the viewed month
-        const filtered = data.filter((t) => {
-          const d = new Date(t.date);
-          return d.getMonth() + 1 === month && d.getFullYear() === year;
-        });
-        setTxData(filtered);
+        const data = await res.json();
+        setTxData(Array.isArray(data) ? data : data.transactions ?? []);
       }
     } catch {
       // silent

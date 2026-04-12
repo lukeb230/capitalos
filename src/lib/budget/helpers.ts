@@ -78,30 +78,41 @@ export async function getActualSpending(
   const startDate = new Date(Date.UTC(year, month - 1, 1));
   const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-  // Get all Plaid account IDs for this profile
-  const plaidAccounts = await prisma.plaidAccount.findMany({
-    where: { plaidItem: { profileId, isActive: true } },
-    select: { id: true },
-  });
-
-  // Also include manually-uploaded transactions (no plaidAccountId but
-  // linked to a checkin for this profile).
-  const checkinIds = await prisma.monthlyCheckin.findMany({
+  // Check if a monthly check-in exists for this month. If it does, its
+  // transactions are copies of the Plaid-synced originals — only count
+  // the check-in copies to avoid double-counting.
+  const checkins = await prisma.monthlyCheckin.findMany({
     where: { profileId, month, year },
     select: { id: true },
   });
 
-  const transactions = await prisma.transaction.findMany({
-    where: {
-      date: { gte: startDate, lte: endDate },
-      isIncome: false,
-      excluded: false,
-      OR: [
-        { plaidAccountId: { in: plaidAccounts.map((a) => a.id) } },
-        { checkinId: { in: checkinIds.map((c) => c.id) } },
-      ],
-    },
-  });
+  let transactions;
+  if (checkins.length > 0) {
+    // Check-in exists: use only its linked transactions
+    transactions = await prisma.transaction.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+        isIncome: false,
+        excluded: false,
+        checkinId: { in: checkins.map((c) => c.id) },
+      },
+    });
+  } else {
+    // No check-in: use unattached Plaid-synced transactions
+    const plaidAccounts = await prisma.plaidAccount.findMany({
+      where: { plaidItem: { profileId, isActive: true } },
+      select: { id: true },
+    });
+    transactions = await prisma.transaction.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+        isIncome: false,
+        excluded: false,
+        plaidAccountId: { in: plaidAccounts.map((a) => a.id) },
+        checkinId: null,
+      },
+    });
+  }
 
   const byCategory: Record<string, number> = {};
   for (const t of transactions) {
