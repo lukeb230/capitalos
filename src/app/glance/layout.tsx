@@ -1,3 +1,27 @@
+import type { Metadata, Viewport } from "next";
+
+export const metadata: Metadata = {
+  title: "CapitalOS Glance",
+  description: "Quick financial snapshot",
+  manifest: "/manifest-glance.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Glance",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function GlanceLayout({
   children,
 }: {

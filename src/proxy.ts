@@ -44,6 +44,6 @@ export const config = {
     // service worker / manifest which must be reachable unauthenticated so
     // iOS can fetch them during the "Add to Home Screen" install flow
     // before any login has happened.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.png$|.*\\.svg$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.webmanifest$|sw.js|.*\\.png$|.*\\.svg$).*)",
   ],
 };
