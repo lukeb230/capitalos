@@ -122,6 +122,8 @@ model Goal {
   targetDate    DateTime
   priority      Int      @default(1)
   type          String   @default("custom")
+  linkedAssetId String?
+  linkedDebtId  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

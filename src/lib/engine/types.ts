@@ -46,6 +46,8 @@ export interface GoalInput {
   targetDate: string;
   priority: number;
   type: string;
+  linkedAssetId?: string | null;
+  linkedDebtId?: string | null;
 }
 
 export interface FinancialState {

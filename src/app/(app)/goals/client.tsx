@@ -53,6 +53,8 @@ interface Goal {
   targetDate: string;
   priority: number;
   type: string;
+  linkedAssetId?: string | null;
+  linkedDebtId?: string | null;
 }
 
 interface FIData {
@@ -64,12 +66,20 @@ interface FIData {
   profileRetirementAge: number;
 }
 
+interface AssetItem {
+  id: string;
+  name: string;
+  value: number;
+  type: string;
+}
+
 interface Props {
   items: Goal[];
   projections: GoalProjection[];
   cashFlow: number;
   debtPayoffs: DebtPayoffResult[];
   debts: DebtInput[];
+  assets: AssetItem[];
   autoTrackedAmounts: Record<string, number>;
   fiData: FIData;
 }
@@ -93,12 +103,13 @@ function typeIcon(type: string) {
 
 const AUTO_TRACKED_TYPES = ["net_worth", "debt_free", "emergency_fund", "retirement", "purchase"];
 
-export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, autoTrackedAmounts, fiData }: Props) {
+export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, assets, autoTrackedAmounts, fiData }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [form, setForm] = useState({
     name: "", targetAmount: "", currentAmount: "0", targetDate: "", priority: "1", type: "custom",
+    linkedAssetId: "", linkedDebtId: "",
   });
 
   const onTrackCount = projections.filter((p) => p.onTrack).length;
@@ -156,7 +167,7 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", targetAmount: "", currentAmount: "0", targetDate: "", priority: "1", type: "custom" });
+    setForm({ name: "", targetAmount: "", currentAmount: "0", targetDate: "", priority: "1", type: "custom", linkedAssetId: "", linkedDebtId: "" });
     setOpen(true);
   }
 
@@ -169,6 +180,8 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
       targetDate: new Date(item.targetDate).toISOString().split("T")[0],
       priority: String(item.priority),
       type: item.type,
+      linkedAssetId: item.linkedAssetId ?? "",
+      linkedDebtId: item.linkedDebtId ?? "",
     });
     setOpen(true);
   }
@@ -185,8 +198,10 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
       targetDate: new Date(form.targetDate).toISOString(),
       priority: isNaN(priority) ? 1 : priority,
       type: form.type,
+      linkedAssetId: form.linkedAssetId || null,
+      linkedDebtId: form.linkedDebtId || null,
     };
-    if (!isAutoTracked) {
+    if (!isAutoTracked && !form.linkedAssetId && !form.linkedDebtId) {
       data.currentAmount = currentAmount;
     }
     try {
@@ -247,22 +262,81 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
                 <Label>Goal Name</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={form.type === "debt_free" ? "e.g. Pay off Audi loan" : "e.g. 25K Emergency Fund"} />
               </div>
-              <div className={AUTO_TRACKED_TYPES.includes(form.type) ? "" : "grid grid-cols-2 gap-4"}>
-                <div>
-                  <Label>{form.type === "debt_free" ? "Debt Balance ($)" : "Target Amount ($)"}</Label>
-                  <Input type="number" value={form.targetAmount} onChange={(e) => setForm({ ...form, targetAmount: e.target.value })} placeholder={form.type === "debt_free" ? "15000" : "25000"} />
-                </div>
-                {AUTO_TRACKED_TYPES.includes(form.type) ? (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Current progress is automatically tracked from your {form.type === "net_worth" ? "assets and debts" : form.type === "debt_free" ? "debt balances" : form.type === "emergency_fund" ? "savings and checking accounts" : form.type === "retirement" ? "investment accounts" : "savings and checking accounts"}.
-                  </p>
-                ) : (
-                  <div>
-                    <Label>Current Progress ($)</Label>
-                    <Input type="number" value={form.currentAmount} onChange={(e) => setForm({ ...form, currentAmount: e.target.value })} placeholder="0" />
-                  </div>
-                )}
+              <div>
+                <Label>{form.type === "debt_free" ? "Debt Balance ($)" : "Target Amount ($)"}</Label>
+                <Input type="number" value={form.targetAmount} onChange={(e) => setForm({ ...form, targetAmount: e.target.value })} placeholder={form.type === "debt_free" ? "15000" : "25000"} />
               </div>
+
+              {/* Link to asset or debt */}
+              {form.type === "debt_free" ? (
+                <div>
+                  <Label>Track From Debt</Label>
+                  <Select value={form.linkedDebtId || "_auto"} onValueChange={(v: string | null) => setForm({ ...form, linkedDebtId: v === "_auto" ? "" : (v ?? ""), linkedAssetId: "" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_auto">Auto-detect by name</SelectItem>
+                      {debts.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name} ({formatCurrency(d.balance)})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Progress auto-updates from the linked debt balance.</p>
+                </div>
+              ) : AUTO_TRACKED_TYPES.includes(form.type) ? (
+                <div>
+                  <Label>Track From Asset</Label>
+                  <Select value={form.linkedAssetId || "_auto"} onValueChange={(v: string | null) => setForm({ ...form, linkedAssetId: v === "_auto" ? "" : (v ?? ""), linkedDebtId: "" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_auto">
+                        {form.type === "net_worth" ? "All assets & debts (net worth)" :
+                         form.type === "emergency_fund" || form.type === "purchase" ? "All savings & checking" :
+                         form.type === "retirement" ? "All investment accounts" : "Auto"}
+                      </SelectItem>
+                      {assets.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>{a.name} ({formatCurrency(a.value)})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Progress auto-updates from the linked asset value.</p>
+                </div>
+              ) : (
+                <div>
+                  <Label>Track Progress</Label>
+                  <Select
+                    value={form.linkedAssetId ? `asset:${form.linkedAssetId}` : form.linkedDebtId ? `debt:${form.linkedDebtId}` : "_manual"}
+                    onValueChange={(v: string | null) => {
+                      if (!v || v === "_manual") {
+                        setForm({ ...form, linkedAssetId: "", linkedDebtId: "" });
+                      } else if (v.startsWith("asset:")) {
+                        setForm({ ...form, linkedAssetId: v.slice(6), linkedDebtId: "" });
+                      } else if (v.startsWith("debt:")) {
+                        setForm({ ...form, linkedDebtId: v.slice(5), linkedAssetId: "" });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_manual">Manual</SelectItem>
+                      {assets.length > 0 && assets.map((a) => (
+                        <SelectItem key={a.id} value={`asset:${a.id}`}>{a.name} ({formatCurrency(a.value)})</SelectItem>
+                      ))}
+                      {debts.length > 0 && debts.map((d) => (
+                        <SelectItem key={d.id} value={`debt:${d.id}`}>{d.name} ({formatCurrency(d.balance)})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!form.linkedAssetId && !form.linkedDebtId && (
+                    <div className="mt-2">
+                      <Label>Current Progress ($)</Label>
+                      <Input type="number" value={form.currentAmount} onChange={(e) => setForm({ ...form, currentAmount: e.target.value })} placeholder="0" />
+                    </div>
+                  )}
+                  {(form.linkedAssetId || form.linkedDebtId) && (
+                    <p className="text-xs text-muted-foreground mt-1">Progress auto-updates from the linked account.</p>
+                  )}
+                </div>
+              )}
               <div>
                 <Label>Target Date</Label>
                 <Input type="date" value={form.targetDate} onChange={(e) => setForm({ ...form, targetDate: e.target.value })} />
@@ -354,7 +428,17 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts, 
                       </div>
                       <div>
                         <CardTitle className="text-sm">{item.name}</CardTitle>
-                        <Badge variant="outline" className="text-[10px] mt-0.5">{typeLabel(item.type)}</Badge>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Badge variant="outline" className="text-[10px]">{typeLabel(item.type)}</Badge>
+                          {item.linkedAssetId && (() => {
+                            const a = assets.find((x) => x.id === item.linkedAssetId);
+                            return a ? <Badge variant="secondary" className="text-[10px]">{a.name}</Badge> : null;
+                          })()}
+                          {item.linkedDebtId && (() => {
+                            const d = debts.find((x) => x.id === item.linkedDebtId);
+                            return d ? <Badge variant="secondary" className="text-[10px]">{d.name}</Badge> : null;
+                          })()}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-0.5">

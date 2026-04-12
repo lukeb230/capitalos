@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, TrendingUp, Wallet, BarChart3, Zap } from "lucide-react";
+import { RefreshCw, TrendingUp, Wallet, BarChart3, Zap, AlertTriangle, Target } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 const MONTH_NAMES = [
@@ -17,6 +17,14 @@ interface BudgetRow {
   label: string;
   budgeted: number;
   spent: number;
+}
+
+interface GoalRow {
+  name: string;
+  currentAmount: number;
+  targetAmount: number;
+  type: string;
+  onTrack: boolean;
 }
 
 interface Props {
@@ -34,6 +42,7 @@ interface Props {
   emergencyMonths: number;
   dtiRatio: number;
   budgetRows: BudgetRow[];
+  goalRows: GoalRow[];
   lastSynced: string | null;
 }
 
@@ -75,6 +84,7 @@ export function GlanceClient({
   emergencyMonths,
   dtiRatio,
   budgetRows,
+  goalRows,
   lastSynced,
 }: Props) {
   const router = useRouter();
@@ -121,6 +131,39 @@ export function GlanceClient({
           {refreshing ? "Syncing…" : "Refresh"}
         </Button>
       </div>
+
+      {/* Budget Alerts */}
+      {(() => {
+        const overBudget = budgetRows.filter((r) => r.budgeted > 0 && r.spent > r.budgeted);
+        const nearLimit = budgetRows.filter((r) => {
+          const pct = r.budgeted > 0 ? (r.spent / r.budgeted) * 100 : 0;
+          return pct >= 80 && pct <= 100;
+        });
+        if (overBudget.length === 0 && nearLimit.length === 0) return null;
+        return (
+          <div className="space-y-1.5">
+            {overBudget.map((r) => (
+              <div key={r.category} className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                <span className="text-xs">
+                  <strong>{r.label}</strong> over budget — {formatCurrency(r.spent)}/{formatCurrency(r.budgeted)}
+                </span>
+              </div>
+            ))}
+            {nearLimit.map((r) => {
+              const pct = Math.round((r.spent / r.budgeted) * 100);
+              return (
+                <div key={r.category} className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                  <span className="text-xs">
+                    <strong>{r.label}</strong> at {pct}% — {formatCurrency(r.budgeted - r.spent)} left
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Net Worth */}
       <Card>
@@ -312,6 +355,47 @@ export function GlanceClient({
           </div>
         </CardContent>
       </Card>
+
+      {/* Goals */}
+      {goalRows.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="h-4 w-4 text-blue-500" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Goals
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {goalRows.map((g) => {
+                const pct = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0;
+                return (
+                  <div key={g.name} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground truncate mr-2">{g.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className={g.onTrack ? "text-emerald-600" : "text-amber-500"}>
+                          {pct}%
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${g.onTrack ? "bg-emerald-500" : "bg-amber-500"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{formatCurrency(g.currentAmount)}</span>
+                      <span>{formatCurrency(g.targetAmount)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Last synced */}
       <p className="text-center text-[10px] text-muted-foreground pb-4">

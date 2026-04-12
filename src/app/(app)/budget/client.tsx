@@ -527,6 +527,33 @@ export function BudgetClient({
         />
       </div>
 
+      {/* Budget Alerts */}
+      {(() => {
+        const overBudget = rows.filter((r) => r.pct > 100);
+        const nearLimit = rows.filter((r) => r.pct >= 80 && r.pct <= 100);
+        if (overBudget.length === 0 && nearLimit.length === 0) return null;
+        return (
+          <div className="space-y-2">
+            {overBudget.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                <span className="text-sm">
+                  <strong>{categoryLabel(r.category)}</strong> is over budget — {formatCurrency(r.spent)} of {formatCurrency(r.budget)} ({r.pct}%)
+                </span>
+              </div>
+            ))}
+            {nearLimit.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                <span className="text-sm">
+                  <strong>{categoryLabel(r.category)}</strong> is at {r.pct}% — {formatCurrency(r.remaining)} remaining
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Empty state */}
       {rows.length === 0 && (
         <Card>

@@ -51,6 +51,7 @@ export default async function DashboardPage() {
   }));
   const goalInputs = goals.map((g) => ({
     id: g.id, name: g.name, targetAmount: g.targetAmount, currentAmount: g.currentAmount, targetDate: g.targetDate.toISOString(), priority: g.priority, type: g.type,
+    linkedAssetId: g.linkedAssetId, linkedDebtId: g.linkedDebtId,
   }));
 
   const state = { incomes: incomeInputs, expenses: expenseInputs, debts: debtInputs, assets: assetInputs, goals: goalInputs };
@@ -134,6 +135,16 @@ export default async function DashboardPage() {
   const investmentAssetTotal = assetInputs.filter((a) => a.type === "investment").reduce((sum, a) => sum + a.value, 0);
   const autoTrackedAmounts: Record<string, number> = {};
   for (const g of goalInputs) {
+    if (g.linkedAssetId) {
+      const linked = assetInputs.find((a) => a.id === g.linkedAssetId);
+      if (linked) autoTrackedAmounts[g.id] = linked.value;
+      continue;
+    }
+    if (g.linkedDebtId) {
+      const linked = debtInputs.find((d) => d.id === g.linkedDebtId);
+      if (linked) autoTrackedAmounts[g.id] = Math.max(0, g.targetAmount - linked.balance);
+      continue;
+    }
     switch (g.type) {
       case "net_worth": autoTrackedAmounts[g.id] = netWorth; break;
       case "debt_free": {

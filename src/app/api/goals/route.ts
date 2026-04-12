@@ -36,6 +36,8 @@ export async function POST(req: Request) {
         targetDate: body.targetDate ? new Date(body.targetDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         priority: typeof body.priority === "number" ? Math.round(body.priority) : 1,
         type: body.type || "custom",
+        linkedAssetId: typeof body.linkedAssetId === "string" ? body.linkedAssetId : null,
+        linkedDebtId: typeof body.linkedDebtId === "string" ? body.linkedDebtId : null,
       },
     });
     return NextResponse.json(item, { status: 201 });
@@ -70,6 +72,8 @@ export async function PUT(req: Request) {
     if (body.targetDate !== undefined) data.targetDate = new Date(body.targetDate);
     if (body.priority !== undefined) data.priority = Math.round(body.priority);
     if (body.type !== undefined) data.type = body.type;
+    if (body.linkedAssetId !== undefined) data.linkedAssetId = typeof body.linkedAssetId === "string" ? body.linkedAssetId : null;
+    if (body.linkedDebtId !== undefined) data.linkedDebtId = typeof body.linkedDebtId === "string" ? body.linkedDebtId : null;
 
     const item = await prisma.goal.update({ where: { id }, data });
     return NextResponse.json(item);

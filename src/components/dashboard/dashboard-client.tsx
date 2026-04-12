@@ -16,6 +16,7 @@ import { calculateTotalTax, type FilingStatus } from "@/lib/engine/tax";
 import { generateCSV } from "@/lib/export/csv-export";
 import { PlaidRefreshButton } from "@/components/plaid-refresh-button";
 import { BudgetStatusCard, type BudgetStatusRow } from "@/components/dashboard/budget-status-card";
+import { categoryLabel } from "@/lib/budget/helpers";
 import { formatCurrency, formatMonths } from "@/lib/utils";
 import {
   DollarSign,
@@ -34,6 +35,8 @@ import {
   Settings,
   GripVertical,
   X,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import type {
   MonthlySnapshot,
@@ -106,7 +109,7 @@ function StatCard({
 
 type DashboardSection =
   | "projection" | "waterfall" | "dti" | "debtPayoff" | "goals" | "milestones" | "aiInsights"
-  | "netWorthHistory" | "taxEstimate" | "budgetStatus"
+  | "netWorthHistory" | "taxEstimate" | "budgetStatus" | "budgetAlerts"
   | "incomeVsExpenses" | "expenseDonut" | "fixedVsVariable" | "assetAllocation"
   | "netWorthBreakdown" | "debtInterestCost" | "goalCountdown" | "debtFreeCountdown";
 
@@ -121,6 +124,7 @@ const sectionLabels: Record<DashboardSection, string> = {
   netWorthHistory: "Net Worth History",
   taxEstimate: "Annual Tax Estimate",
   budgetStatus: "Budget Status",
+  budgetAlerts: "Budget Alerts",
   incomeVsExpenses: "Income vs Expenses",
   expenseDonut: "Expense Donut",
   fixedVsVariable: "Fixed vs Variable Expenses",
@@ -133,7 +137,7 @@ const sectionLabels: Record<DashboardSection, string> = {
 
 const defaultSections: DashboardSection[] = [
   "projection", "waterfall", "dti", "debtPayoff", "goals", "milestones", "aiInsights",
-  "netWorthHistory", "taxEstimate", "budgetStatus",
+  "netWorthHistory", "taxEstimate", "budgetStatus", "budgetAlerts",
 ];
 
 const optionalSections: DashboardSection[] = [
@@ -426,6 +430,47 @@ export function DashboardClient({
       case "budgetStatus":
         return <BudgetStatusCard key={section} rows={budgetStatusRows} />;
 
+      case "budgetAlerts": {
+        const overBudget = budgetStatusRows.filter((r) => r.budgeted > 0 && r.spent > r.budgeted);
+        const nearLimit = budgetStatusRows.filter((r) => {
+          const p = r.budgeted > 0 ? (r.spent / r.budgeted) * 100 : 0;
+          return p >= 80 && p <= 100;
+        });
+        if (overBudget.length === 0 && nearLimit.length === 0) {
+          return (
+            <Card key={section}>
+              <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4" />Budget Alerts</CardTitle></CardHeader>
+              <CardContent><p className="text-sm text-emerald-600 flex items-center gap-2"><CheckCircle2 className="h-4 w-4" />All categories within budget</p></CardContent>
+            </Card>
+          );
+        }
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" />Budget Alerts</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {overBudget.map((r) => {
+                const p = Math.round((r.spent / r.budgeted) * 100);
+                return (
+                  <div key={r.category} className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                    <span className="text-xs"><strong>{categoryLabel(r.category)}</strong> over budget — {formatCurrency(r.spent)}/{formatCurrency(r.budgeted)} ({p}%)</span>
+                  </div>
+                );
+              })}
+              {nearLimit.map((r) => {
+                const p = Math.round((r.spent / r.budgeted) * 100);
+                return (
+                  <div key={r.category} className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                    <span className="text-xs"><strong>{categoryLabel(r.category)}</strong> at {p}% — {formatCurrency(r.budgeted - r.spent)} remaining</span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      }
+
       case "incomeVsExpenses": {
         const totalOutflow = monthlyExpenses + monthlyDebtPayments + totalContributions;
         const maxBar = Math.max(monthlyIncome, totalOutflow, 1);
@@ -701,7 +746,7 @@ export function DashboardClient({
         {/* MAIN: Sections */}
         <div className="space-y-6">
           {visibleSections
-            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown", "netWorthHistory", "taxEstimate", "budgetStatus"].includes(s))
+            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown", "netWorthHistory", "taxEstimate", "budgetStatus", "budgetAlerts"].includes(s))
             .map((section) => renderSection(section))}
         </div>
 
@@ -713,6 +758,7 @@ export function DashboardClient({
           {visibleSections.includes("debtFreeCountdown") && renderSection("debtFreeCountdown")}
           {visibleSections.includes("aiInsights") && renderSection("aiInsights")}
           {visibleSections.includes("budgetStatus") && renderSection("budgetStatus")}
+          {visibleSections.includes("budgetAlerts") && renderSection("budgetAlerts")}
 
           {/* Goal Tracker */}
           {goalProjections.length > 0 && (

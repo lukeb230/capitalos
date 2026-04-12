@@ -43,6 +43,8 @@ export default async function GoalsPage() {
     targetDate: g.targetDate.toISOString(),
     priority: g.priority,
     type: g.type,
+    linkedAssetId: g.linkedAssetId,
+    linkedDebtId: g.linkedDebtId,
   }));
 
   state.goals = goalInputs;
@@ -58,12 +60,24 @@ export default async function GoalsPage() {
 
   const autoTrackedAmounts: Record<string, number> = {};
   for (const g of goalInputs) {
+    // If a specific asset or debt is linked, use that directly
+    if (g.linkedAssetId) {
+      const linked = assetInputs.find((a) => a.id === g.linkedAssetId);
+      if (linked) autoTrackedAmounts[g.id] = linked.value;
+      continue;
+    }
+    if (g.linkedDebtId) {
+      const linked = debtInputs.find((d) => d.id === g.linkedDebtId);
+      if (linked) autoTrackedAmounts[g.id] = Math.max(0, g.targetAmount - linked.balance);
+      continue;
+    }
+
+    // Fallback: auto-track by goal type
     switch (g.type) {
       case "net_worth":
         autoTrackedAmounts[g.id] = netWorth;
         break;
       case "debt_free": {
-        // Try both directions for name matching, then fall back to closest balance match
         const goalLower = g.name.toLowerCase();
         const matchingDebt = debtInputs.find(
           (d) => goalLower.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(goalLower)
@@ -180,6 +194,7 @@ export default async function GoalsPage() {
       cashFlow={freeSurplus}
       debtPayoffs={JSON.parse(JSON.stringify(debtPayoffs))}
       debts={debtInputs}
+      assets={assetInputs}
       autoTrackedAmounts={autoTrackedAmounts}
       fiData={fiData}
     />
