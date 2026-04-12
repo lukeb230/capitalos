@@ -38,6 +38,8 @@ export async function GET(req: Request) {
         if (checkins.length > 0) {
           where = {
             date: { gte: startDate, lte: endDate },
+            isIncome: false,
+            excluded: false,
             checkinId: { in: checkins.map((c) => c.id) },
           };
         } else {
@@ -47,6 +49,8 @@ export async function GET(req: Request) {
           });
           where = {
             date: { gte: startDate, lte: endDate },
+            isIncome: false,
+            excluded: false,
             plaidAccountId: { in: plaidAccounts.map((a) => a.id) },
             checkinId: null as null,
           };
@@ -202,7 +206,7 @@ export async function DELETE(req: Request) {
     cutoff.setDate(cutoff.getDate() - 90);
 
     const result = await prisma.transaction.deleteMany({
-      where: { date: { lt: cutoff } },
+      where: { date: { lt: cutoff }, checkinId: null },
     });
 
     return NextResponse.json({ success: true, deleted: result.count });
