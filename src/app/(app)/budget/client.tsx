@@ -33,6 +33,8 @@ import {
   AlertTriangle,
   CheckCircle,
   TrendingUp,
+  RefreshCw,
+  HelpCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { BUDGET_CATEGORIES, categoryLabel } from "@/lib/budget/helpers";
@@ -180,6 +182,14 @@ export function BudgetClient({
     (c) => !categories.some((cat) => cat.category === c.key),
   );
 
+  // Unaccounted spending: categories with actual transactions but no budget
+  const budgetedCategoryKeys = new Set(categories.map((c) => c.category));
+  const unaccountedRows = Object.entries(actual)
+    .filter(([cat, amt]) => !budgetedCategoryKeys.has(cat) && amt > 0)
+    .map(([cat, amt]) => ({ category: cat, spent: amt }))
+    .sort((a, b) => b.spent - a.spent);
+  const totalUnaccounted = unaccountedRows.reduce((s, r) => s + r.spent, 0);
+
   // -----------------------------------------------------------------------
   // Month navigation
   // -----------------------------------------------------------------------
@@ -307,6 +317,28 @@ export function BudgetClient({
     router.refresh();
   }
 
+  // Plaid refresh
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetch("/api/plaid/balances", { method: "POST" }),
+        fetch("/api/plaid/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        }),
+      ]);
+      router.refresh();
+    } catch {
+      // Silently fail — data just won't update
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function computeRollover() {
     await fetch("/api/budget/rollover", {
       method: "POST",
@@ -331,6 +363,10 @@ export function BudgetClient({
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Syncing…" : "Refresh"}
+          </Button>
           <Button variant="outline" size="sm" onClick={computeRollover}>
             <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
             Compute Rollover
@@ -516,6 +552,40 @@ export function BudgetClient({
           </Card>
         ))}
       </div>
+
+      {/* Unaccounted for — spending in categories without a budget */}
+      {unaccountedRows.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <div className="flex items-center gap-2 text-sm">
+              <HelpCircle className="h-4 w-4 text-amber-500" />
+              <span className="font-medium">Unaccounted For</span>
+              <span className="text-amber-600 font-bold">
+                {formatCurrency(totalUnaccounted)}
+              </span>
+            </div>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {unaccountedRows.map((r) => (
+              <Card key={r.category} className="border-amber-200 dark:border-amber-800">
+                <CardContent className="p-3 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {categoryLabel(r.category)}
+                  </span>
+                  <span className="text-sm font-bold text-amber-600">
+                    {formatCurrency(r.spent)}
+                  </span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center">
+            These transactions fall into categories without a budget. Add them above to track spending.
+          </p>
+        </div>
+      )}
 
       {/* Bottom cards: unbudgeted income + investment contributions */}
       <div className="grid gap-4 lg:grid-cols-2">
