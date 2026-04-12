@@ -942,7 +942,7 @@ export function BudgetClient({
       {/* Transaction Viewer Dialog */}
       {/* ----------------------------------------------------------------- */}
       <Dialog open={txOpen} onOpenChange={setTxOpen}>
-        <DialogContent className="max-w-[90vw] w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="!max-w-[90vw] w-full max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>
               Transactions — {MONTH_NAMES[month - 1]} {year}
