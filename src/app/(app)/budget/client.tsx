@@ -23,6 +23,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Plus,
   Pencil,
   Trash2,
@@ -35,6 +43,9 @@ import {
   TrendingUp,
   RefreshCw,
   HelpCircle,
+  ReceiptText,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { BUDGET_CATEGORIES, categoryLabel } from "@/lib/budget/helpers";
@@ -339,6 +350,87 @@ export function BudgetClient({
     }
   }
 
+  // Transaction viewer
+  interface TransactionRow {
+    id: string;
+    date: string;
+    description: string;
+    amount: number;
+    isIncome: boolean;
+    category: string;
+    source: string;
+    excluded: boolean;
+    accountLabel?: string;
+  }
+
+  const [txOpen, setTxOpen] = useState(false);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txData, setTxData] = useState<TransactionRow[]>([]);
+  const [txSearch, setTxSearch] = useState("");
+  const [txFilterCat, setTxFilterCat] = useState("all");
+  const [txFilterAcct, setTxFilterAcct] = useState("all");
+
+  async function openTransactions() {
+    setTxOpen(true);
+    setTxLoading(true);
+    setTxSearch("");
+    setTxFilterCat("all");
+    setTxFilterAcct("all");
+    try {
+      // Fetch transactions for the currently viewed month
+      const startDate = new Date(Date.UTC(year, month - 1, 1));
+      const endDate = new Date(Date.UTC(year, month, 0));
+      const daysInRange = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+      ) + 60; // pad to ensure we capture the full month
+      const res = await fetch(`/api/transactions?days=${daysInRange}`);
+      if (res.ok) {
+        const data: TransactionRow[] = await res.json();
+        // Filter to just the viewed month
+        const filtered = data.filter((t) => {
+          const d = new Date(t.date);
+          return d.getMonth() + 1 === month && d.getFullYear() === year;
+        });
+        setTxData(filtered);
+      }
+    } catch {
+      // silent
+    } finally {
+      setTxLoading(false);
+    }
+  }
+
+  async function updateTxCategory(txId: string, newCategory: string) {
+    try {
+      await fetch("/api/transactions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: txId, category: newCategory }),
+      });
+      setTxData((prev) =>
+        prev.map((t) => (t.id === txId ? { ...t, category: newCategory } : t)),
+      );
+      // Refresh the spending totals
+      router.refresh();
+    } catch {
+      alert("Failed to update category.");
+    }
+  }
+
+  const txAccountLabels = useMemo(() => {
+    const set = new Set(txData.map((t) => t.accountLabel || t.source || "Manual"));
+    return [...set].sort();
+  }, [txData]);
+
+  const filteredTx = useMemo(() => {
+    return txData.filter((t) => {
+      if (txFilterCat !== "all" && t.category !== txFilterCat) return false;
+      if (txSearch && !t.description.toLowerCase().includes(txSearch.toLowerCase())) return false;
+      if (txFilterAcct !== "all" && (t.accountLabel || t.source || "Manual") !== txFilterAcct) return false;
+      return true;
+    });
+  }, [txData, txFilterCat, txSearch, txFilterAcct]);
+
   async function computeRollover() {
     await fetch("/api/budget/rollover", {
       method: "POST",
@@ -374,6 +466,10 @@ export function BudgetClient({
           <Button variant="outline" size="sm" onClick={() => setTemplateOpen(true)}>
             <Sparkles className="h-3.5 w-3.5 mr-1.5" />
             Templates
+          </Button>
+          <Button variant="outline" size="sm" onClick={openTransactions}>
+            <ReceiptText className="h-3.5 w-3.5 mr-1.5" />
+            Transactions
           </Button>
           <Button size="sm" onClick={openAdd} disabled={unbudgetedCategories.length === 0}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -839,6 +935,154 @@ export function BudgetClient({
               Cancel
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Transaction Viewer Dialog */}
+      {/* ----------------------------------------------------------------- */}
+      <Dialog open={txOpen} onOpenChange={setTxOpen}>
+        <DialogContent className="max-w-[90vw] w-full max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Transactions — {MONTH_NAMES[month - 1]} {year}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Filters */}
+          <div className="flex gap-3 py-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search transactions..."
+                value={txSearch}
+                onChange={(e) => setTxSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <Select
+              value={txFilterCat}
+              onValueChange={(v: string | null) => {
+                if (v) setTxFilterCat(v);
+              }}
+            >
+              <SelectTrigger className="w-[150px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {BUDGET_CATEGORIES.map((c) => (
+                  <SelectItem key={c.key} value={c.key}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {txAccountLabels.length > 1 && (
+              <Select
+                value={txFilterAcct}
+                onValueChange={(v: string | null) => {
+                  if (v) setTxFilterAcct(v);
+                }}
+              >
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {txAccountLabels.map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="overflow-y-auto flex-1">
+            {txLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredTx.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12 text-sm">
+                {txData.length === 0
+                  ? `No transactions for ${MONTH_NAMES[month - 1]} ${year}. Hit Refresh to sync from Plaid.`
+                  : "No transactions match your filters."}
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[90px]">Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[100px] text-right">
+                      Amount
+                    </TableHead>
+                    <TableHead className="w-[150px]">Category</TableHead>
+                    <TableHead className="w-[180px]">Account</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTx.slice(0, 500).map((t) => (
+                    <TableRow
+                      key={t.id}
+                      className={t.excluded ? "opacity-40 line-through" : ""}
+                    >
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(t.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {t.description}
+                      </TableCell>
+                      <TableCell
+                        className={`text-sm text-right font-medium ${t.isIncome ? "text-emerald-600" : ""}`}
+                      >
+                        {t.isIncome ? "+" : "-"}
+                        {formatCurrency(t.amount)}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={t.category}
+                          onValueChange={(v: string | null) => {
+                            if (v) updateTxCategory(t.id, v);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BUDGET_CATEGORIES.map((c) => (
+                              <SelectItem key={c.key} value={c.key}>
+                                {c.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {t.accountLabel || t.source || "Manual"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+            Showing {Math.min(filteredTx.length, 500)} of{" "}
+            {filteredTx.length} transactions
+            {txFilterCat !== "all" || txSearch || txFilterAcct !== "all"
+              ? ` (filtered from ${txData.length} total)`
+              : ""}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
