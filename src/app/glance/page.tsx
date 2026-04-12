@@ -1,5 +1,5 @@
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { getActiveProfileId } from "@/lib/profile";
 import {
   budgetToExpenseInputs,
   getActualSpending,
@@ -23,7 +23,26 @@ import { GlanceClient } from "./client";
 export const dynamic = "force-dynamic";
 
 export default async function GlancePage() {
-  const profileId = await getActiveProfileId();
+  // Use active profile if set, otherwise auto-select the first one.
+  // This avoids the /profiles redirect loop that sends users to the
+  // full dashboard instead of back to /glance.
+  const cookieStore = await cookies();
+  let profileId = cookieStore.get("decision-profile-id")?.value;
+
+  if (!profileId) {
+    const firstProfile = await prisma.profile.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    if (!firstProfile) {
+      return (
+        <div className="text-center py-20 text-muted-foreground">
+          <p>No profiles found. Set up your profile on the desktop app first.</p>
+        </div>
+      );
+    }
+    profileId = firstProfile.id;
+  }
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
