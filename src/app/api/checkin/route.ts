@@ -75,7 +75,7 @@ export async function POST(req: Request) {
             amount: typeof t.amount === "number" && isFinite(t.amount as number) ? t.amount as number : 0,
             isIncome: typeof t.isIncome === "boolean" ? t.isIncome : false,
             category: typeof t.category === "string" ? t.category : "other",
-            source: typeof t.source === "string" ? t.source : "unknown",
+            source: typeof t.accountLabel === "string" ? t.accountLabel : typeof t.source === "string" ? t.source : "unknown",
             excluded: typeof t.excluded === "boolean" ? t.excluded : false,
           })),
         });
