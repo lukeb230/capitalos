@@ -19,7 +19,7 @@ import {
   calculateMonthlyCashFlow,
   calculateDebtPayoff,
 } from "@/lib/engine/calculator";
-import { projectToGoal, projectMonthly } from "@/lib/engine/projections";
+import { projectToGoal, projectMonthly, projectLinkedGoal } from "@/lib/engine/projections";
 import { GlanceClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -198,7 +198,25 @@ export default async function GlancePage() {
 
     // Determine on-track status
     let onTrack = false;
-    if (g.type === "debt_free") {
+    if (g.linkedAssetId) {
+      const linked = assetInputs.find((a) => a.id === g.linkedAssetId);
+      if (linked) {
+        const proj = projectLinkedGoal(g, {
+          currentValue: linked.value, monthlyContribution: linked.monthlyContribution || 0,
+          annualRate: linked.growthRate || 0, isDebt: false,
+        });
+        onTrack = proj.onTrack;
+      }
+    } else if (g.linkedDebtId) {
+      const linked = debtInputs.find((d) => d.id === g.linkedDebtId);
+      if (linked) {
+        const proj = projectLinkedGoal(g, {
+          currentValue: linked.balance, monthlyContribution: linked.minimumPayment || 0,
+          annualRate: linked.interestRate || 0, isDebt: true,
+        });
+        onTrack = proj.onTrack;
+      }
+    } else if (g.type === "debt_free") {
       const goalLower = g.name.toLowerCase();
       const match = debtPayoffs.find(
         (dp) => goalLower.includes(dp.debtName.toLowerCase()) || dp.debtName.toLowerCase().includes(goalLower),

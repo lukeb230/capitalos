@@ -212,6 +212,58 @@ export function projectToGoal(
   };
 }
 
+/**
+ * Projects when a goal linked to a specific asset or debt will be reached,
+ * using that entity's contribution/payment rate and growth/interest rate.
+ */
+export function projectLinkedGoal(
+  goal: { targetAmount: number; targetDate: string },
+  linked: { currentValue: number; monthlyContribution: number; annualRate: number; isDebt: boolean },
+): Omit<GoalProjection, "goalId" | "goalName"> {
+  const currentAmount = linked.isDebt
+    ? Math.max(0, goal.targetAmount - linked.currentValue)
+    : linked.currentValue;
+
+  if (currentAmount >= goal.targetAmount) {
+    return { estimatedMonths: 0, estimatedDate: new Date().toISOString().split("T")[0], monthlySavingsNeeded: 0, onTrack: true };
+  }
+
+  const monthlyRate = (linked.annualRate || 0) / 100 / 12;
+  let value = linked.currentValue;
+  let estimatedMonths = Infinity;
+
+  if (linked.isDebt) {
+    // Simulate debt paydown
+    for (let m = 1; m <= 1200; m++) {
+      value += value * (monthlyRate); // interest accrues
+      const payment = Math.min(linked.monthlyContribution, value);
+      value -= payment;
+      if (value <= 0.01) { estimatedMonths = m; break; }
+    }
+  } else {
+    // Simulate asset growth with contributions
+    for (let m = 1; m <= 1200; m++) {
+      value = value * (1 + monthlyRate) + linked.monthlyContribution;
+      if (value >= goal.targetAmount) { estimatedMonths = m; break; }
+    }
+  }
+
+  const estimatedDate = new Date();
+  if (estimatedMonths !== Infinity) estimatedDate.setMonth(estimatedDate.getMonth() + estimatedMonths);
+
+  const targetDate = new Date(goal.targetDate);
+  const monthsUntilTarget = Math.max(0, (targetDate.getFullYear() - new Date().getFullYear()) * 12 + targetDate.getMonth() - new Date().getMonth());
+  const remaining = goal.targetAmount - currentAmount;
+  const monthlySavingsNeeded = monthsUntilTarget > 0 ? remaining / monthsUntilTarget : Infinity;
+
+  return {
+    estimatedMonths,
+    estimatedDate: estimatedMonths === Infinity ? "Never" : estimatedDate.toISOString().split("T")[0],
+    monthlySavingsNeeded: isFinite(monthlySavingsNeeded) ? Math.round(monthlySavingsNeeded * 100) / 100 : Infinity,
+    onTrack: monthsUntilTarget > 0 && estimatedMonths <= monthsUntilTarget,
+  };
+}
+
 export function applyScenarioChanges(
   state: FinancialState,
   changes: ScenarioChangeInput[]

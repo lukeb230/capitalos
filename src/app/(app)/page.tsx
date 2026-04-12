@@ -17,7 +17,7 @@ import {
   projectSavings,
   toMonthly,
 } from "@/lib/engine/calculator";
-import { projectMonthly, projectToGoal } from "@/lib/engine/projections";
+import { projectMonthly, projectToGoal, projectLinkedGoal } from "@/lib/engine/projections";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 
 export const dynamic = "force-dynamic";
@@ -160,6 +160,28 @@ export default async function DashboardPage() {
   }
 
   const goalProjections = goalInputs.map((g) => {
+    // If linked to a specific asset or debt, project using that entity's rates
+    if (g.linkedAssetId) {
+      const linked = assetInputs.find((a) => a.id === g.linkedAssetId);
+      if (linked) {
+        const proj = projectLinkedGoal(g, {
+          currentValue: linked.value, monthlyContribution: linked.monthlyContribution || 0,
+          annualRate: linked.growthRate || 0, isDebt: false,
+        });
+        return { ...proj, goalId: g.id, goalName: g.name };
+      }
+    }
+    if (g.linkedDebtId) {
+      const linked = debtInputs.find((d) => d.id === g.linkedDebtId);
+      if (linked) {
+        const proj = projectLinkedGoal(g, {
+          currentValue: linked.balance, monthlyContribution: linked.minimumPayment || 0,
+          annualRate: linked.interestRate || 0, isDebt: true,
+        });
+        return { ...proj, goalId: g.id, goalName: g.name };
+      }
+    }
+
     // For debt_free goals, use debt payoff calculation
     if (g.type === "debt_free") {
       const goalLower = g.name.toLowerCase();

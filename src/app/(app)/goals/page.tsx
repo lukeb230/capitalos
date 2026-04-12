@@ -8,7 +8,7 @@ import {
   calculateDebtPayoff,
   calculateNetWorth,
 } from "@/lib/engine/calculator";
-import { projectToGoal, projectMonthly } from "@/lib/engine/projections";
+import { projectToGoal, projectMonthly, projectLinkedGoal } from "@/lib/engine/projections";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +107,28 @@ export default async function GoalsPage() {
 
   // Compute projections for each goal
   const goalProjections = goalInputs.map((g) => {
+    // If linked to a specific asset or debt, project using that entity's rates
+    if (g.linkedAssetId) {
+      const linked = assetInputs.find((a) => a.id === g.linkedAssetId);
+      if (linked) {
+        const proj = projectLinkedGoal(g, {
+          currentValue: linked.value, monthlyContribution: linked.monthlyContribution || 0,
+          annualRate: linked.growthRate || 0, isDebt: false,
+        });
+        return { ...proj, goalId: g.id, goalName: g.name };
+      }
+    }
+    if (g.linkedDebtId) {
+      const linked = debtInputs.find((d) => d.id === g.linkedDebtId);
+      if (linked) {
+        const proj = projectLinkedGoal(g, {
+          currentValue: linked.balance, monthlyContribution: linked.minimumPayment || 0,
+          annualRate: linked.interestRate || 0, isDebt: true,
+        });
+        return { ...proj, goalId: g.id, goalName: g.name };
+      }
+    }
+
     // For debt_free goals, use debt payoff calculation instead
     if (g.type === "debt_free") {
       const goalLower = g.name.toLowerCase();
